@@ -35,7 +35,7 @@ const LandingPage = () => {
                 Master your money <br /> with elegance.
             </h1>
             <p className="text-lg md:text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-              Track expenses, set monthly budgets, and analyze your spending habits with a privacy-first, beautiful dashboard.
+              Track expenses, set monthly budgets, and analyze your spending habits with a privacy-first and secure expense logging platform.
             </p>
             
             <div className="flex flex-col md:flex-row gap-4 justify-center items-center">
