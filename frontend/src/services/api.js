@@ -1,4 +1,13 @@
 import axios from 'axios';
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  sendPasswordResetEmail,
+  signOut,
+  updateProfile,
+} from 'firebase/auth';
+import { auth, googleProvider } from './firebase';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 const getAuthHeader = () => {
@@ -7,28 +16,29 @@ const getAuthHeader = () => {
 };
 
 export const login = async (email, password) => {
-  const formData = new FormData();
-  formData.append('username', email);
-  formData.append('password', password);
-
-  const response = await axios.post(`${API_URL}/api/v1/auth/login`, formData);
-  if (response.data.access_token) {
-    localStorage.setItem('token', response.data.access_token);
-  }
-  return response.data;
+  const credential = await signInWithEmailAndPassword(auth, email, password);
+  return credential.user;
 };
 
 export const signup = async (email, password, fullName) => {
-  const response = await axios.post(`${API_URL}/api/v1/auth/signup`, {
-    email,
-    password,
-    full_name: fullName,
-  });
-  return response.data;
+  const credential = await createUserWithEmailAndPassword(auth, email, password);
+  if (fullName) {
+    await updateProfile(credential.user, { displayName: fullName });
+  }
+  return credential.user;
 };
 
-export const logout = () => {
-  localStorage.removeItem('token');
+export const loginWithGoogle = async () => {
+  const credential = await signInWithPopup(auth, googleProvider);
+  return credential.user;
+};
+
+export const logout = async () => {
+  await signOut(auth);
+};
+
+export const forgotPassword = async (email) => {
+  await sendPasswordResetEmail(auth, email);
 };
 
 export const getTransactions = async () => {
@@ -100,18 +110,4 @@ export const setBudget = async (category, amount) => {
     console.error("Set budget error:", error);
     throw error;
   }
-};
-
-export const forgotPassword = async (email) => {
-  const response = await axios.post(`${API_URL}/api/v1/auth/forgot-password`, { email });
-  return response.data;
-};
-
-export const resetPassword = async (email, otp, newPassword) => {
-  const response = await axios.post(`${API_URL}/api/v1/auth/reset-password`, {
-    email,
-    otp,
-    new_password: newPassword,
-  });
-  return response.data;
 };

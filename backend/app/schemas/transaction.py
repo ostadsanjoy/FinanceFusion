@@ -14,8 +14,8 @@ class TransactionCreate(TransactionBase):
     pass
 
 class Transaction(TransactionBase):
-    id: int
-    user_id: int
+    id: str
+    user_id: str
     date: datetime 
 
     class Config:

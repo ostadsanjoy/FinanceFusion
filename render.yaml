@@ -8,20 +8,8 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: SECRET_KEY
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
         sync: false
-      - key: DATABASE_URL
-        value: sqlite:///./finance.db
-      - key: OTP_EXPIRE_MINUTES
-        value: "10"
-      - key: MAX_OTP_ATTEMPTS
-        value: "5"
-      - key: BREVO_API_KEY
-        sync: false
-      - key: BREVO_SENDER_EMAIL
-        sync: false
-      - key: BREVO_SENDER_NAME
-        value: Finance Fusion
       - key: FRONTEND_ORIGIN
         sync: false
     healthCheckPath: /
@@ -36,6 +24,18 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
+        sync: false
+      - key: VITE_FIREBASE_API_KEY
+        sync: false
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: VITE_FIREBASE_PROJECT_ID
+        sync: false
+      - key: VITE_FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
+        sync: false
+      - key: VITE_FIREBASE_APP_ID
         sync: false
     routes:
       - type: rewrite

@@ -1,12 +1,8 @@
 fastapi
 uvicorn[standard]
-sqlalchemy
+firebase-admin
 pydantic
 pydantic-settings
 python-multipart
 python-dotenv
-python-jose[cryptography]
-passlib[bcrypt]
-bcrypt<4.1
 email-validator
-requests

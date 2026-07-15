@@ -1,37 +1,86 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from datetime import datetime
 from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException
+from google.cloud.firestore_v1.base_query import FieldFilter
+
 from app.database import get_db
-from app.models import budget as models
-from app.schemas import budget as schemas
+from app.schemas import transaction as schemas
 from app.api.v1.endpoints.auth import get_current_user
-from app.models.user import User
 
 router = APIRouter()
 
-@router.get("/", response_model=List[schemas.Budget])
-def read_budgets(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return db.query(models.Budget).filter(models.Budget.user_id == current_user.id).all()
+TRANSACTIONS = "transactions"
 
-@router.post("/", response_model=schemas.Budget)
-def set_budget(
-    budget_data: schemas.BudgetCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+
+@router.post("/", response_model=schemas.Transaction)
+def create_transaction(
+    transaction: schemas.TransactionCreate,
+    db=Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
-    existing_budget = db.query(models.Budget).filter(
-        models.Budget.user_id == current_user.id,
-        models.Budget.category == budget_data.category
-    ).first()
+    data = transaction.model_dump()
+    data["date"] = data["date"] or datetime.utcnow()
+    data["user_id"] = current_user["id"]
 
-    if existing_budget:
-        existing_budget.amount = budget_data.amount
-        db.commit()
-        db.refresh(existing_budget)
-        return existing_budget
-    else:
-        new_budget = models.Budget(**budget_data.model_dump(), user_id=current_user.id)
-        db.add(new_budget)
-        db.commit()
-        db.refresh(new_budget)
-        return new_budget
+    _, doc_ref = db.collection(TRANSACTIONS).add(data)
+    data["id"] = doc_ref.id
+    return data
+
+
+@router.get("/", response_model=List[schemas.Transaction])
+def read_transactions(
+    skip: int = 0,
+    limit: int = 1000,
+    db=Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    query = (
+        db.collection(TRANSACTIONS)
+        .where(filter=FieldFilter("user_id", "==", current_user["id"]))
+        .offset(skip)
+        .limit(limit)
+    )
+    results = []
+    for doc in query.stream():
+        data = doc.to_dict()
+        data["id"] = doc.id
+        results.append(data)
+    return results
+
+
+@router.put("/{transaction_id}", response_model=schemas.Transaction)
+def update_transaction(
+    transaction_id: str,
+    transaction_update: schemas.TransactionCreate,
+    db=Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    doc_ref = db.collection(TRANSACTIONS).document(transaction_id)
+    snap = doc_ref.get()
+    if not snap.exists or snap.to_dict().get("user_id") != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    update_data = transaction_update.model_dump()
+    if update_data["date"] is None:
+        update_data["date"] = snap.to_dict().get("date")
+
+    doc_ref.update(update_data)
+    data = doc_ref.get().to_dict()
+    data["id"] = doc_ref.id
+    return data
+
+
+@router.delete("/{transaction_id}")
+def delete_transaction(
+    transaction_id: str,
+    db=Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    doc_ref = db.collection(TRANSACTIONS).document(transaction_id)
+    snap = doc_ref.get()
+    if not snap.exists or snap.to_dict().get("user_id") != current_user["id"]:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    doc_ref.delete()
+    return {"message": "Transaction deleted"}

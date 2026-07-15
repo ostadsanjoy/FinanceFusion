@@ -1,71 +1,86 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from datetime import datetime
 from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException
+from google.cloud.firestore_v1.base_query import FieldFilter
+
 from app.database import get_db
-from app.models import transaction as models
 from app.schemas import transaction as schemas
 from app.api.v1.endpoints.auth import get_current_user
-from app.models.user import User
 
 router = APIRouter()
+
+TRANSACTIONS = "transactions"
+
 
 @router.post("/", response_model=schemas.Transaction)
 def create_transaction(
     transaction: schemas.TransactionCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db=Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
-    db_transaction = models.Transaction(**transaction.model_dump(), user_id=current_user.id)
-    db.add(db_transaction)
-    db.commit()
-    db.refresh(db_transaction)
-    return db_transaction
+    data = transaction.model_dump()
+    data["date"] = data["date"] or datetime.utcnow()
+    data["user_id"] = current_user["id"]
+
+    _, doc_ref = db.collection(TRANSACTIONS).add(data)
+    data["id"] = doc_ref.id
+    return data
+
 
 @router.get("/", response_model=List[schemas.Transaction])
 def read_transactions(
     skip: int = 0,
     limit: int = 1000,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db=Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
-    return db.query(models.Transaction).filter(models.Transaction.user_id == current_user.id).all()
+    query = (
+        db.collection(TRANSACTIONS)
+        .where(filter=FieldFilter("user_id", "==", current_user["id"]))
+        .offset(skip)
+        .limit(limit)
+    )
+    results = []
+    for doc in query.stream():
+        data = doc.to_dict()
+        data["id"] = doc.id
+        results.append(data)
+    return results
+
 
 @router.put("/{transaction_id}", response_model=schemas.Transaction)
 def update_transaction(
-    transaction_id: int,
+    transaction_id: str,
     transaction_update: schemas.TransactionCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db=Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
-    db_transaction = db.query(models.Transaction).filter(
-        models.Transaction.id == transaction_id,
-        models.Transaction.user_id == current_user.id
-    ).first()
-
-    if not db_transaction:
+    doc_ref = db.collection(TRANSACTIONS).document(transaction_id)
+    snap = doc_ref.get()
+    if not snap.exists or snap.to_dict().get("user_id") != current_user["id"]:
         raise HTTPException(status_code=404, detail="Transaction not found")
 
-    for key, value in transaction_update.model_dump().items():
-        setattr(db_transaction, key, value)
+    update_data = transaction_update.model_dump()
+    if update_data["date"] is None:
+        update_data["date"] = snap.to_dict().get("date")
 
-    db.commit()
-    db.refresh(db_transaction)
-    return db_transaction
+    doc_ref.update(update_data)
+    data = doc_ref.get().to_dict()
+    data["id"] = doc_ref.id
+    return data
+
 
 @router.delete("/{transaction_id}")
 def delete_transaction(
-    transaction_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    transaction_id: str,
+    db=Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
-    db_transaction = db.query(models.Transaction).filter(
-        models.Transaction.id == transaction_id,
-        models.Transaction.user_id == current_user.id
-    ).first()
-
-    if not db_transaction:
+    doc_ref = db.collection(TRANSACTIONS).document(transaction_id)
+    snap = doc_ref.get()
+    if not snap.exists or snap.to_dict().get("user_id") != current_user["id"]:
         raise HTTPException(status_code=404, detail="Transaction not found")
 
-    db.delete(db_transaction)
-    db.commit()
+    doc_ref.delete()
     return {"message": "Transaction deleted"}

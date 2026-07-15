@@ -8,8 +8,8 @@ class BudgetCreate(BudgetBase):
     pass
 
 class Budget(BudgetBase):
-    id: int
-    user_id: int
+    id: str
+    user_id: str
 
     class Config:
         from_attributes = True

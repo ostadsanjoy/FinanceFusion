@@ -1,19 +1,28 @@
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+import json
+
+import firebase_admin
+from firebase_admin import credentials, firestore
+
 from app.core.config import settings
-connect_args = {"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {}
 
-engine = create_engine(
-    settings.DATABASE_URL, connect_args=connect_args
-)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-Base = declarative_base()
+def _init_firebase():
+    if firebase_admin._apps:
+        return firebase_admin.get_app()
+
+    if settings.FIREBASE_SERVICE_ACCOUNT_JSON:
+        cred_info = json.loads(settings.FIREBASE_SERVICE_ACCOUNT_JSON)
+        cred = credentials.Certificate(cred_info)
+    else:
+        cred = credentials.ApplicationDefault()
+
+    return firebase_admin.initialize_app(cred)
+
+
+_init_firebase()
+db = firestore.client()
+
 
 def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    """FastAPI dependency — yields the shared Firestore client."""
+    return db
