@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend 
 } from 'recharts';
 import GlassCard from '../../components/ui/GlassCard';
-import { Plus, Wallet, History, LogOut, PieChart as PieIcon, BarChart3, Target } from 'lucide-react';
+import { Plus, Wallet, History, LogOut, PieChart as PieIcon, BarChart3, Target, Upload, Download } from 'lucide-react';
 import AddTransactionModal from '../rapid-log/AddTransactionModal';
-import { getTransactions, createTransaction, logout } from '../../services/api';
+import { getTransactions, createTransaction, logout, importTransactions, exportTransactions } from '../../services/api';
+import { categoryIcon } from '../../constants/categories';
 
 const Dashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -83,9 +84,42 @@ const Dashboard = () => {
   };
 
   // --- UPDATED LOGOUT FUNCTION ---
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/'); // <--- Redirects to Landing Page now
+  };
+
+  const fileInputRef = useRef(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState('');
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    setImportMessage('');
+    try {
+      const result = await importTransactions(file);
+      setImportMessage(
+        `Imported ${result.imported} transaction${result.imported === 1 ? '' : 's'}` +
+        (result.skipped ? ` (${result.skipped} row${result.skipped === 1 ? '' : 's'} skipped — couldn't read date/amount)` : '.')
+      );
+      await fetchData();
+    } catch (error) {
+      setImportMessage(error?.response?.data?.detail || 'Import failed. Check the file has DATE, AMOUNT, RECEIVER, PURPOSE columns.');
+    } finally {
+      setIsImporting(false);
+      e.target.value = ''; // allow re-selecting the same file later
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      await exportTransactions();
+    } catch (error) {
+      alert('Export failed. Please try again.');
+    }
   };
 
   const pieData = transactions.reduce((acc, curr) => {
@@ -113,6 +147,34 @@ const Dashboard = () => {
         </div>
         
         <div className="flex items-center gap-3">
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".xlsx,.xlsm,.pdf"
+              className="hidden"
+              onChange={handleImportFile}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-muted rounded-full shadow-sm hover:bg-surface transition-all disabled:opacity-50"
+              title="Import spends from .xlsx or .pdf"
+            >
+              <Download className="w-4 h-4 text-gray-500" />
+              <span className="hidden md:inline text-sm font-medium">
+                {isImporting ? 'Importing...' : 'Import'}
+              </span>
+            </button>
+
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-muted rounded-full shadow-sm hover:bg-surface transition-all"
+              title="Download spends as .xlsx"
+            >
+              <Upload className="w-4 h-4 text-gray-500" />
+              <span className="hidden md:inline text-sm font-medium">Export</span>
+            </button>
+
             <button 
               onClick={() => navigate('/accounts')}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-muted rounded-full shadow-sm hover:bg-surface transition-all"
@@ -139,6 +201,12 @@ const Dashboard = () => {
         </div>
       </header>
 
+      {importMessage && (
+        <div className="max-w-5xl mx-auto -mt-6 mb-6 p-3 bg-green-50 text-green-700 text-sm rounded-xl text-center">
+          {importMessage}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -160,7 +228,7 @@ const Dashboard = () => {
                <div className="h-14 w-14 bg-accent rounded-full flex items-center justify-center text-white shadow-lg mb-3 group-hover:bg-ink transition-colors">
                  <Plus className="w-8 h-8" />
                </div>
-               <span className="font-medium text-lg text-ink">Add New Expenditure</span>
+               <span className="font-medium text-lg text-ink">Rapid Log Cash</span>
             </GlassCard>
           </div>
 
@@ -174,10 +242,7 @@ const Dashboard = () => {
                   <div key={t.id} className="flex justify-between items-center py-2 border-b border-muted/30 last:border-0">
                     <div className="flex items-center gap-4">
                       <div className="h-10 w-10 bg-surface rounded-full flex items-center justify-center text-lg">
-                        {t.category.toLowerCase() === 'food' ? '🍔' : 
-                         t.category.toLowerCase() === 'travel' ? '🚕' : 
-                         t.category.toLowerCase() === 'bills' ? '💡' : 
-                         t.category.toLowerCase() === 'shopping' ? '🛍️' : '✨'}
+                        {categoryIcon(t.category)}
                       </div>
                       <div>
                         <p className="font-medium capitalize">{t.description}</p>

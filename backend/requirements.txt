@@ -6,3 +6,5 @@ pydantic-settings
 python-multipart
 python-dotenv
 email-validator
+openpyxl
+pdfplumber

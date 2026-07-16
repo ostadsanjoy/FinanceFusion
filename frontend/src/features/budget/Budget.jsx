@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getTransactions, getBudgets, setBudget } from '../../services/api';
 import GlassCard from '../../components/ui/GlassCard';
 import { ArrowLeft, Save, AlertCircle } from 'lucide-react';
-
-const CATEGORIES = ['Food', 'Travel', 'Bills', 'Shopping', 'Misc'];
+import { CATEGORIES } from '../../constants/categories';
 
 const Budget = () => {
   const [budgets, setBudgets] = useState({});
@@ -27,11 +26,12 @@ const Budget = () => {
     });
 
     const spendMap = {};
-    CATEGORIES.forEach(cat => spendMap[cat] = 0);
-    
+    CATEGORIES.forEach(cat => spendMap[cat.id] = 0);
+
     currentTxns.forEach(t => {
-      const cat = CATEGORIES.find(c => c.toLowerCase() === t.category.toLowerCase()) || 'Misc';
-      spendMap[cat] += t.amount;
+      const match = CATEGORIES.find(c => c.id === t.category.toLowerCase());
+      const catId = match ? match.id : 'misc';
+      spendMap[catId] += t.amount;
     });
     setSpending(spendMap);
 
@@ -60,7 +60,8 @@ const Budget = () => {
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-        {CATEGORIES.map(category => {
+        {CATEGORIES.map(cat => {
+          const category = cat.id;
           const limit = budgets[category] || 0;
           const spent = spending[category] || 0;
           const percentage = limit > 0 ? (spent / limit) * 100 : 0;
@@ -71,10 +72,8 @@ const Budget = () => {
             <GlassCard key={category} className={`bg-white ${isOver ? 'border-red-200 ring-2 ring-red-100' : ''}`}>
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">
-                    {category === 'Food' ? '🍔' : category === 'Travel' ? '🚕' : category === 'Bills' ? '💡' : category === 'Shopping' ? '🛍️' : '✨'}
-                  </span>
-                  <h3 className="font-semibold text-lg">{category}</h3>
+                  <span className="text-2xl">{cat.icon}</span>
+                  <h3 className="font-semibold text-lg">{cat.name}</h3>
                 </div>
                 {isOver && <AlertCircle className="w-5 h-5 text-red-500" />}
               </div>

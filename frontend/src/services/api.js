@@ -111,3 +111,30 @@ export const setBudget = async (category, amount) => {
     throw error;
   }
 };
+
+export const importTransactions = async (file, year) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (year) formData.append('year', year);
+
+  const response = await axios.post(`${API_URL}/transactions/import`, formData, {
+    headers: { ...getAuthHeader(), 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data; // { imported, skipped }
+};
+
+export const exportTransactions = async () => {
+  const response = await axios.get(`${API_URL}/transactions/export`, {
+    headers: getAuthHeader(),
+    responseType: 'blob',
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  const filename = `spends_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};

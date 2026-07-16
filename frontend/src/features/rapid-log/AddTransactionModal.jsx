@@ -1,14 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, Trash2 } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
-
-const categories = [
-  { id: 'food', name: 'Food', icon: '🍔' },
-  { id: 'travel', name: 'Travel', icon: '🚕' },
-  { id: 'bills', name: 'Bills', icon: '💡' },
-  { id: 'shopping', name: 'Shopping', icon: '🛍️' },
-  { id: 'misc', name: 'Misc', icon: '✨' },
-];
+import { CATEGORIES as categories } from '../../constants/categories';
 
 const AddTransactionModal = ({ isOpen, onClose, onSubmit, initialData = null, onDelete }) => {
   const [amount, setAmount] = useState('');
@@ -41,7 +34,7 @@ const AddTransactionModal = ({ isOpen, onClose, onSubmit, initialData = null, on
     
     onSubmit({
       amount: parseFloat(amount),
-      category: categories.find(c => c.id === selectedCategory)?.name || 'Misc',
+      category: selectedCategory,
       description: description || 'Expense',
       source_type: 'CASH',
       date: new Date(customDate).toISOString() // Use selected date

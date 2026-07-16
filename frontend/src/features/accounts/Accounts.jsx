@@ -4,6 +4,7 @@ import { getTransactions, createTransaction, updateTransaction, deleteTransactio
 import GlassCard from '../../components/ui/GlassCard';
 import AddTransactionModal from '../rapid-log/AddTransactionModal';
 import { ArrowLeft, Calendar, ChevronDown, ChevronRight, Plus, Pencil } from 'lucide-react';
+import { categoryIcon } from '../../constants/categories';
 
 const Accounts = () => {
   const [years, setYears] = useState({});
@@ -183,7 +184,7 @@ const Accounts = () => {
                                                 >
                                                     <div className="flex items-center gap-3">
                                                         <span className="text-xl">
-                                                            {t.category === 'Food' ? '🍔' : t.category === 'Travel' ? '🚕' : t.category === 'Bills' ? '💡' : '✨'}
+                                                            {categoryIcon(t.category)}
                                                         </span>
                                                         <div className="flex flex-col">
                                                             <span className="font-medium text-sm">{t.description}</span>
