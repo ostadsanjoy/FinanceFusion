@@ -4,6 +4,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   sendPasswordResetEmail,
+  sendEmailVerification,
   signOut,
   updateProfile,
 } from 'firebase/auth';
@@ -25,7 +26,17 @@ export const signup = async (email, password, fullName) => {
   if (fullName) {
     await updateProfile(credential.user, { displayName: fullName });
   }
+  await sendEmailVerification(credential.user);
   return credential.user;
+};
+
+// Used from the "check your email" screen right after signup, where the
+// user is still signed in (just unverified) — no need to re-enter anything.
+export const resendVerificationEmail = async () => {
+  if (!auth.currentUser) {
+    throw new Error('No active session to resend a verification email for.');
+  }
+  await sendEmailVerification(auth.currentUser);
 };
 
 export const loginWithGoogle = async () => {
@@ -38,6 +49,8 @@ export const logout = async () => {
 };
 
 export const forgotPassword = async (email) => {
+  // Firebase sends its own password-reset email (with a hosted reset page)
+  // directly — no backend involvement, no deliverability issues to debug.
   await sendPasswordResetEmail(auth, email);
 };
 
@@ -128,6 +141,8 @@ export const exportTransactions = async () => {
     headers: getAuthHeader(),
     responseType: 'blob',
   });
+
+  // Trigger a browser download of the returned xlsx file
   const url = window.URL.createObjectURL(new Blob([response.data]));
   const link = document.createElement('a');
   link.href = url;

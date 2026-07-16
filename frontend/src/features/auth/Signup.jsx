@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { signup, loginWithGoogle } from '../../services/api';
+import { signup, loginWithGoogle, resendVerificationEmail, logout } from '../../services/api';
 import GlassCard from '../../components/ui/GlassCard';
 
 const Signup = () => {
@@ -8,6 +8,8 @@ const Signup = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -15,7 +17,7 @@ const Signup = () => {
     setError('');
     try {
       await signup(email, password, fullName);
-      navigate('/dashboard');
+      setVerificationSent(true);
     } catch (err) {
       setError('Email already exists or invalid data');
     }
@@ -24,12 +26,62 @@ const Signup = () => {
   const handleGoogleSignup = async () => {
     setError('');
     try {
+      // Google accounts are already verified by Google — no extra step needed.
       await loginWithGoogle();
       navigate('/dashboard');
     } catch (err) {
       setError('Google sign-in failed. Please try again.');
     }
   };
+
+  const handleResend = async () => {
+    setResendMessage('');
+    try {
+      await resendVerificationEmail();
+      setResendMessage('Verification email sent again — check your inbox.');
+    } catch (err) {
+      setResendMessage('Could not resend right now. Please try again shortly.');
+    }
+  };
+
+  const handleGoToLogin = async () => {
+    await logout();
+    navigate('/login');
+  };
+
+  if (verificationSent) {
+    return (
+      <div className="min-h-screen bg-canvas flex items-center justify-center p-4">
+        <GlassCard className="w-full max-w-md bg-white border-white/60 shadow-xl text-center">
+          <h1 className="text-2xl font-semibold text-ink mb-2">Verify your email</h1>
+          <p className="text-gray-500 text-sm mb-6">
+            We've sent a verification link to <span className="font-medium text-ink">{email}</span>.
+            Click it, then sign in below.
+          </p>
+
+          {resendMessage && (
+            <div className="mb-4 p-3 bg-green-50 text-green-600 text-sm rounded-xl">
+              {resendMessage}
+            </div>
+          )}
+
+          <button
+            onClick={handleResend}
+            className="w-full bg-surface text-ink font-medium py-3 rounded-xl hover:bg-gray-100 transition-colors mb-3"
+          >
+            Resend verification email
+          </button>
+
+          <button
+            onClick={handleGoToLogin}
+            className="w-full bg-ink text-white font-medium py-3 rounded-xl shadow-lg hover:scale-[1.02] transition-transform"
+          >
+            Go to Sign In
+          </button>
+        </GlassCard>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-canvas flex items-center justify-center p-4">
