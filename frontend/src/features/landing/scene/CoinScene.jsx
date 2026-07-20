@@ -1,5 +1,5 @@
 import React, { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useGLTF, Sparkles, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 
@@ -13,7 +13,7 @@ const NUM_COINS = PER_LAYER * LAYERS;
 const RAW = { halfWidth: 0.0427, height: 0.0887, halfDepth: 0.05 };
 
 const PIGGY_SCALE_START = 70;
-const PIGGY_SCALE_END = 57;
+const PIGGY_SCALE_END = 60;
 const GROUP_POS_START = new THREE.Vector3(4.5, -3.8, 0);
 const GROUP_POS_END = new THREE.Vector3(3, -3.5, 0);
 const PIGGY_SCALE = PIGGY_SCALE_END;
@@ -33,6 +33,11 @@ const SLOT_POS = new THREE.Vector3(0, BELLY.slotY, BELLY.slotZ);
 const TURN_END = 0.22;
 const SIDE_ANGLE = -1.35;
 const FRONT_ANGLE = 0.05;
+
+const REVEAL_START = 0.85;
+const REVEAL_END = 1;
+const BASE_FOV = 33;
+const REVEALED_FOV = 45;
 
 const easeInOut = (t) => t * t * (3 - 2 * t);
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
@@ -169,6 +174,19 @@ function CoinField({ gltf, progress }) {
   );
 }
 
+function CameraRig({ progress }) {
+  const { camera } = useThree();
+
+  useFrame(() => {
+    const p = progress.current;
+    const t = easeInOut(Math.min(Math.max((p - REVEAL_START) / (REVEAL_END - REVEAL_START), 0), 1));
+    camera.fov = THREE.MathUtils.lerp(BASE_FOV, REVEALED_FOV, t);
+    camera.updateProjectionMatrix();
+  });
+
+  return null;
+}
+
 export default function CoinScene({ interaction, progress }) {
   const group = useRef();
   const turnRef = useRef(FRONT_ANGLE);
@@ -195,6 +213,7 @@ export default function CoinScene({ interaction, progress }) {
 
   return (
     <group ref={group} position={GROUP_POS_START.toArray()}>
+      <CameraRig progress={progress} />
       <Environment preset="apartment" />
       <ambientLight intensity={0.5} />
       <directionalLight position={[4, 5, 4]} intensity={1.1} color="#fff3dc" />
