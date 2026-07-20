@@ -1,10 +1,8 @@
 import React, { Suspense, lazy, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useScroll, useMotionValueEvent } from 'framer-motion';
-import { ArrowRight, Wallet, PieChart, Shield, ChevronDown } from 'lucide-react';
-import GlassCard from '../../components/ui/GlassCard';
+import { ArrowRight, ChevronDown } from 'lucide-react';
 import MagneticButton from '../../components/ui/MagneticButton';
-
 
 const HeroCanvas = lazy(() => import('./scene/HeroCanvas'));
 
@@ -33,15 +31,12 @@ const Hero = ({ navigate }) => {
     <section ref={sectionRef} className="relative h-[260vh]">
       <div className="sticky top-0 h-screen w-full overflow-hidden bg-canvas">
 
-        {/* 3D scene — full-bleed, piggy bank sits right-of-center */}
         <Suspense fallback={<div className="absolute inset-0" />}>
           <HeroCanvas className="absolute inset-0 z-0" progress={progressRef} />
         </Suspense>
 
-        {/* Readability scrim behind the left-side copy */}
         <div className="absolute inset-0 z-[5] bg-gradient-to-r from-canvas via-canvas/85 md:via-canvas/80 to-transparent w-full md:w-3/5 pointer-events-none" />
 
-        {/* Nav */}
         <motion.nav
           variants={fadeUp}
           initial="hidden"
@@ -72,7 +67,6 @@ const Hero = ({ navigate }) => {
           </div>
         </motion.nav>
 
-        {/* Left copy */}
         <div className="relative z-10 h-full flex items-center px-5 md:px-10">
           <div className="max-w-lg">
             <motion.span
@@ -146,42 +140,6 @@ const LandingPage = () => {
 
       <Hero navigate={navigate} />
 
-      {/* Feature Cards */}
-      <main id="features" className="flex flex-col items-center justify-center text-center px-4 max-w-4xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 w-full px-4 animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-200">
-          <GlassCard className="bg-white/40 p-8 text-left hover:bg-white/80 transition-colors">
-            <div className="p-3 bg-surface rounded-xl w-fit mb-4">
-              <Wallet className="w-6 h-6 text-accent" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">Smart Tracking</h3>
-            <p className="text-sm text-gray-500 leading-relaxed">
-              Log expenses in seconds. Edit history and organize categories seamlessly.
-            </p>
-          </GlassCard>
-
-          <GlassCard className="bg-white/40 p-8 text-left hover:bg-white/80 transition-colors">
-            <div className="p-3 bg-surface rounded-xl w-fit mb-4">
-              <PieChart className="w-6 h-6 text-accent" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">Visual Analytics</h3>
-            <p className="text-sm text-gray-500 leading-relaxed">
-              Beautiful charts that compare your monthly spending to help you save.
-            </p>
-          </GlassCard>
-
-          <GlassCard id="security" className="bg-white/40 p-8 text-left hover:bg-white/80 transition-colors">
-            <div className="p-3 bg-surface rounded-xl w-fit mb-4">
-              <Shield className="w-6 h-6 text-accent" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">Budget Control</h3>
-            <p className="text-sm text-gray-500 leading-relaxed">
-              Set strict monthly limits. We warn you before you overspend.
-            </p>
-          </GlassCard>
-        </div>
-      </main>
-
-      {/* Footer */}
       <footer className="mt-24 pb-8 text-center text-sm text-gray-300">
         <p>© 2026 Finance Fusion. Crafted by Sanjoy.</p>
       </footer>

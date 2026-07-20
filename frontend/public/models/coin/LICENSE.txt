@@ -1,0 +1,11 @@
+Model Information:
+* title:	Cthulhu_Coin_HW10
+* source:	https://sketchfab.com/3d-models/cthulhu-coin-hw10-9bdff09410ef47aa9aec71abbd02f193
+* author:	nahem.san (https://sketchfab.com/nahem.san)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Cthulhu_Coin_HW10" (https://sketchfab.com/3d-models/cthulhu-coin-hw10-9bdff09410ef47aa9aec71abbd02f193) by nahem.san (https://sketchfab.com/nahem.san) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

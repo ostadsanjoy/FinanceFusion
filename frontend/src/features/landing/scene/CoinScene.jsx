@@ -1,201 +1,221 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Sparkles } from '@react-three/drei';
+import { useGLTF, Sparkles, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 
-const SLOT_POS = new THREE.Vector3(0.05, 1.0, 0.15);
-const NUM_COINS = 6;
+const COIN_URL = '/models/coin/scene.gltf';
+const PIGGY_URL = '/models/piggy/piggy.gltf';
+
+const PER_LAYER = 8;
+const LAYERS = 7;
+const NUM_COINS = PER_LAYER * LAYERS;
+
+const RAW = { halfWidth: 0.0427, height: 0.0887, halfDepth: 0.05 };
+
+const PIGGY_SCALE_START = 70;
+const PIGGY_SCALE_END = 57;
+const GROUP_POS_START = new THREE.Vector3(4.5, -3.8, 0);
+const GROUP_POS_END = new THREE.Vector3(3, -3.5, 0);
+const PIGGY_SCALE = PIGGY_SCALE_END;
+
+const BELLY = {
+  floorY: RAW.height * PIGGY_SCALE * 0.14,
+  halfFillY: RAW.height * PIGGY_SCALE * 0.52,
+  slotY: RAW.height * PIGGY_SCALE * 0.9,
+  slotZ: RAW.halfDepth * PIGGY_SCALE * 0.32,
+  radius: Math.min(RAW.halfWidth, RAW.halfDepth) * PIGGY_SCALE * 0.52,
+};
+
+const COIN_DIAMETER = RAW.height * PIGGY_SCALE * 0.22;
+
+const SLOT_POS = new THREE.Vector3(0, BELLY.slotY, BELLY.slotZ);
+
+const TURN_END = 0.22;
+const SIDE_ANGLE = -1.35;
+const FRONT_ANGLE = 0.05;
 
 const easeInOut = (t) => t * t * (3 - 2 * t);
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
-// Where each coin settles once it's fallen through the slot, building a
-// little pile at the bottom of the belly.
-function restPosition(index) {
-  const row = Math.floor(index / 3);
-  const col = index % 3;
+const rand = (seed) => {
+  const x = Math.sin(seed * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+};
+
+function pilePosition(i) {
+  const layer = Math.floor(i / PER_LAYER);
+  const slot = i % PER_LAYER;
+  const angle = (slot / PER_LAYER) * Math.PI * 2 + layer * 0.6;
+  const radius = BELLY.radius * (0.25 + rand(i) * 0.7);
+  const layerHeight = (BELLY.halfFillY - BELLY.floorY) / LAYERS;
+  const y = BELLY.floorY + layer * layerHeight + rand(i * 2.1) * layerHeight * 0.3;
   return new THREE.Vector3(
-    -0.42 + col * 0.42 + (row % 2 ? 0.18 : 0),
-    -0.82 + row * 0.22,
-    -0.15 + col * 0.14
+    Math.cos(angle) * radius,
+    y,
+    Math.sin(angle) * radius * 0.8 + BELLY.slotZ * 0.3
   );
 }
 
-function PiggyBank({ bump }) {
-  const bodyRef = useRef();
+function PiggyBank({ gltf, progress, turnRef }) {
+  const wrapRef = useRef();
 
   useFrame((state) => {
-    if (!bodyRef.current) return;
-    const t = state.clock.getElapsedTime();
-    const breathe = 1 + Math.sin(t * 0.6) * 0.008;
-    const squish = 1 + bump.current * 0.08;
-    bodyRef.current.scale.set(1.32 * breathe * (1 / squish), 1.02 * breathe * squish, 1.08 * breathe * (1 / squish));
+    if (!wrapRef.current) return;
+    const t = easeInOut(Math.min(Math.max(progress.current / TURN_END, 0), 1));
+    const breathe = 1 + Math.sin(state.clock.getElapsedTime() * 0.6) * 0.006;
+    const scale = THREE.MathUtils.lerp(PIGGY_SCALE_START, PIGGY_SCALE_END, t) * breathe;
+    wrapRef.current.scale.setScalar(scale);
+    turnRef.current = THREE.MathUtils.lerp(SIDE_ANGLE, FRONT_ANGLE, t);
   });
 
-  const glassProps = {
-    color: '#f7ecec',
-    transparent: true,
-    opacity: 0.22,
-    roughness: 0.06,
-    metalness: 0,
-    clearcoat: 1,
-    clearcoatRoughness: 0.08,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-  };
-
   return (
-    <group>
-      {/* body — glass shell so the coin pile inside is visible */}
-      <mesh ref={bodyRef} renderOrder={2}>
-        <sphereGeometry args={[1.15, 48, 48]} />
-        <meshPhysicalMaterial {...glassProps} />
-      </mesh>
-
-      {/* snout */}
-      <mesh position={[0, -0.08, 1.16]} rotation={[Math.PI / 2, 0, 0]} renderOrder={2}>
-        <cylinderGeometry args={[0.36, 0.4, 0.3, 28]} />
-        <meshPhysicalMaterial {...glassProps} opacity={0.3} />
-      </mesh>
-      <mesh position={[-0.11, -0.08, 1.32]} renderOrder={3}>
-        <sphereGeometry args={[0.045, 12, 12]} />
-        <meshStandardMaterial color="#c9a3a8" roughness={0.5} transparent opacity={0.6} />
-      </mesh>
-      <mesh position={[0.11, -0.08, 1.32]} renderOrder={3}>
-        <sphereGeometry args={[0.045, 12, 12]} />
-        <meshStandardMaterial color="#c9a3a8" roughness={0.5} transparent opacity={0.6} />
-      </mesh>
-
-      {/* ears */}
-      <mesh position={[-0.58, 0.98, 0.5]} rotation={[0.25, -0.5, 0.35]} renderOrder={2}>
-        <coneGeometry args={[0.27, 0.42, 4]} />
-        <meshPhysicalMaterial {...glassProps} />
-      </mesh>
-      <mesh position={[0.58, 0.98, 0.5]} rotation={[0.25, 0.5, -0.35]} renderOrder={2}>
-        <coneGeometry args={[0.27, 0.42, 4]} />
-        <meshPhysicalMaterial {...glassProps} />
-      </mesh>
-
-      {/* eyes */}
-      <mesh position={[-0.42, 0.28, 0.98]} renderOrder={3}>
-        <sphereGeometry args={[0.06, 16, 16]} />
-        <meshStandardMaterial color="#2A2A2A" roughness={0.3} transparent opacity={0.75} />
-      </mesh>
-      <mesh position={[0.42, 0.28, 0.98]} renderOrder={3}>
-        <sphereGeometry args={[0.06, 16, 16]} />
-        <meshStandardMaterial color="#2A2A2A" roughness={0.3} transparent opacity={0.75} />
-      </mesh>
-
-      {/* legs */}
-      {[
-        [-0.72, -1.08, 0.55],
-        [0.72, -1.08, 0.55],
-        [-0.72, -1.08, -0.55],
-        [0.72, -1.08, -0.55],
-      ].map((p, i) => (
-        <mesh key={i} position={p} renderOrder={2}>
-          <cylinderGeometry args={[0.17, 0.19, 0.36, 16]} />
-          <meshPhysicalMaterial {...glassProps} opacity={0.3} />
-        </mesh>
-      ))}
-
-      {/* curly tail */}
-      <mesh position={[0, 0.55, -1.18]} rotation={[0.3, 0, 0]} renderOrder={2}>
-        <torusGeometry args={[0.14, 0.035, 8, 24, Math.PI * 1.6]} />
-        <meshPhysicalMaterial {...glassProps} opacity={0.3} />
-      </mesh>
-
-      {/* coin slot */}
-      <mesh position={SLOT_POS.toArray()} rotation={[0, 0, 0.08]} renderOrder={3}>
-        <boxGeometry args={[0.36, 0.05, 0.1]} />
-        <meshStandardMaterial color="#3A2530" roughness={0.7} />
-      </mesh>
+    <group ref={wrapRef} scale={PIGGY_SCALE_START}>
+      <primitive object={gltf.scene} />
     </group>
   );
 }
 
-function DepositCoin({ progress, index, bump }) {
-  const ref = useRef();
-  const start = useMemo(
-    () => new THREE.Vector3(-3.4 + index * 0.1, 3.1 - index * 0.18, 0.6 + index * 0.12),
-    [index]
+function CoinField({ gltf, progress }) {
+  const meshRef = useRef();
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+
+  const geometry = useMemo(() => {
+    let geo = null;
+    gltf.scene.traverse((child) => {
+      if (child.isMesh && !geo) geo = child.geometry;
+    });
+    const cloned = geo.clone();
+    cloned.computeBoundingBox();
+    const box = cloned.boundingBox;
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    cloned.translate(-center.x, -center.y, -center.z);
+    cloned.rotateX(-Math.PI / 2);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const diameter = Math.max(size.x, size.y);
+    const scale = COIN_DIAMETER / diameter;
+    cloned.scale(scale, scale, scale);
+    return cloned;
+  }, [gltf]);
+
+  const material = useMemo(() => {
+    let mat = null;
+    gltf.scene.traverse((child) => {
+      if (child.isMesh && !mat) mat = child.material;
+    });
+    return mat;
+  }, [gltf]);
+
+  const starts = useMemo(
+    () =>
+      Array.from({ length: NUM_COINS }).map((_, i) => {
+        const layer = Math.floor(i / PER_LAYER);
+        return new THREE.Vector3(
+          SLOT_POS.x - 4.2 + rand(i * 3.3) * 1.4,
+          SLOT_POS.y + 3.2 + layer * 0.3 + rand(i * 5.1) * 0.4,
+          SLOT_POS.z + 0.8 + rand(i * 7.7) * 0.6
+        );
+      }),
+    []
   );
-  const rest = useMemo(() => restPosition(index), [index]);
-
-  const winStart = (index / NUM_COINS) * 0.85;
-  const winEnd = winStart + 0.72 / NUM_COINS + 0.1;
-
-  useFrame((state) => {
-    if (!ref.current) return;
-    const p = progress.current;
-    let t = (p - winStart) / (winEnd - winStart);
-    t = Math.min(Math.max(t, 0), 1);
-
-    if (t < 0.55) {
-      // flight into the slot
-      const local = easeInOut(t / 0.55);
-      const x = THREE.MathUtils.lerp(start.x, SLOT_POS.x, local);
-      const z = THREE.MathUtils.lerp(start.z, SLOT_POS.z, local);
-      const arc = Math.sin(local * Math.PI) * 1.5;
-      const y = THREE.MathUtils.lerp(start.y, SLOT_POS.y, local) + arc;
-      ref.current.position.set(x, y, z);
-      ref.current.rotation.x = local * Math.PI * 5;
-    } else {
-      // falls through the slot and settles into the pile
-      const local = easeOutCubic((t - 0.55) / 0.45);
-      const x = THREE.MathUtils.lerp(SLOT_POS.x, rest.x, local);
-      const y = THREE.MathUtils.lerp(SLOT_POS.y, rest.y, local);
-      const z = THREE.MathUtils.lerp(SLOT_POS.z, rest.z, local);
-      ref.current.position.set(x, y, z);
-      const settle = (1 - local) * Math.PI * 3;
-      ref.current.rotation.x = Math.PI * 5 + settle;
-      ref.current.rotation.z = (1 - local) * 0.6;
-    }
-
-    if (t >= 0.5 && t <= 0.62) bump.local = Math.max(bump.local, Math.sin(((t - 0.5) / 0.12) * Math.PI));
-
-    ref.current.visible = t > 0.02;
-  });
-
-  return (
-    <mesh ref={ref} rotation={[Math.PI / 2, 0, 0]} renderOrder={4}>
-      <cylinderGeometry args={[0.16, 0.16, 0.035, 28]} />
-      <meshStandardMaterial color="#EFCB7E" metalness={0.95} roughness={0.16} />
-    </mesh>
+  const rests = useMemo(() => Array.from({ length: NUM_COINS }).map((_, i) => pilePosition(i)), []);
+  const windows = useMemo(
+    () =>
+      Array.from({ length: NUM_COINS }).map((_, i) => {
+        const layer = Math.floor(i / PER_LAYER);
+        const slot = i % PER_LAYER;
+        const start = layer * (0.72 / LAYERS) + slot * 0.01;
+        return { start, end: start + 0.3 };
+      }),
+    []
   );
-}
-
-export default function CoinScene({ pointer, progress }) {
-  const group = useRef();
-  const bump = useRef(0);
-  const bumpAccum = useRef({ local: 0 });
 
   useFrame(() => {
-    if (!group.current) return;
-    if (pointer) {
-      const targetY = pointer.x * 0.16 - 0.3;
-      const targetX = -pointer.y * 0.06 + 0.05;
-      group.current.rotation.y += (targetY - group.current.rotation.y) * 0.05;
-      group.current.rotation.x += (targetX - group.current.rotation.x) * 0.05;
+    if (!meshRef.current) return;
+    const raw = progress.current;
+    const p = Math.min(Math.max((raw - TURN_END) / (1 - TURN_END), 0), 1);
+
+    for (let i = 0; i < NUM_COINS; i++) {
+      const { start, end } = windows[i];
+      let t = (p - start) / (end - start);
+      t = Math.min(Math.max(t, 0), 1);
+
+      if (t < 0.5) {
+        const local = easeInOut(t / 0.5);
+        const x = THREE.MathUtils.lerp(starts[i].x, SLOT_POS.x, local);
+        const z = THREE.MathUtils.lerp(starts[i].z, SLOT_POS.z, local);
+        const arc = Math.sin(local * Math.PI) * 1.8;
+        const y = THREE.MathUtils.lerp(starts[i].y, SLOT_POS.y, local) + arc;
+        dummy.position.set(x, y, z);
+        dummy.rotation.set(local * Math.PI * 5, rand(i) * 6, 0);
+      } else {
+        const local = easeOutCubic((t - 0.5) / 0.5);
+        dummy.position.lerpVectors(SLOT_POS, rests[i], local);
+        const settle = (1 - local) * Math.PI * 2.5;
+        dummy.rotation.set(Math.PI * 5 + settle, rand(i) * 6, (1 - local) * 0.8);
+      }
+
+      const s = t > 0.02 ? 1 : 0;
+      dummy.scale.setScalar(s * (0.9 + rand(i * 1.7) * 0.2));
+      dummy.updateMatrix();
+      meshRef.current.setMatrixAt(i, dummy.matrix);
     }
-    bump.current += (bumpAccum.current.local - bump.current) * 0.25;
-    bumpAccum.current.local *= 0.85;
+    meshRef.current.instanceMatrix.needsUpdate = true;
   });
 
   return (
-    <group ref={group} position={[1.1, -0.15, 0]} scale={0.62}>
-      <ambientLight intensity={0.65} />
-      <directionalLight position={[4, 5, 4]} intensity={1.3} color="#fff3dc" />
-      <directionalLight position={[-4, -1, -3]} intensity={0.35} color="#8fce9c" />
-      <pointLight position={[0, 1, 3]} intensity={0.5} color="#ffe3a3" />
+    <instancedMesh ref={meshRef} args={[geometry, material, NUM_COINS]} frustumCulled={false} />
+  );
+}
 
-      <PiggyBank bump={bump} />
+export default function CoinScene({ interaction, progress }) {
+  const group = useRef();
+  const turnRef = useRef(FRONT_ANGLE);
+  const coinGltf = useGLTF(COIN_URL);
+  const piggyGltf = useGLTF(PIGGY_URL);
 
-      {Array.from({ length: NUM_COINS }).map((_, i) => (
-        <DepositCoin key={i} progress={progress} index={i} bump={bumpAccum.current} />
-      ))}
+  useFrame((state, delta) => {
+    if (!group.current || !interaction) return;
 
-      <Sparkles count={25} scale={4.5} size={2} speed={0.2} color="#EFCB7E" opacity={0.4} position={[0, 0.5, 0]} />
+    if (!interaction.dragging) {
+      interaction.rotY += interaction.velY * delta * 30;
+      interaction.rotX += interaction.velX * delta * 30;
+      interaction.velX *= 0.92;
+      interaction.velY *= 0.92;
+      interaction.rotX = THREE.MathUtils.clamp(interaction.rotX, -0.5, 0.5);
+    }
+
+    group.current.rotation.y = turnRef.current + interaction.rotY;
+    group.current.rotation.x = interaction.rotX;
+
+    const t = easeInOut(Math.min(Math.max(progress.current / TURN_END, 0), 1));
+    group.current.position.lerpVectors(GROUP_POS_START, GROUP_POS_END, t);
+  });
+
+  return (
+    <group ref={group} position={GROUP_POS_START.toArray()}>
+      <Environment preset="apartment" />
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[4, 5, 4]} intensity={1.1} color="#fff3dc" />
+      <directionalLight position={[-4, -1, -3]} intensity={0.3} color="#8fce9c" />
+      <pointLight position={[0, 1, 3]} intensity={0.4} color="#ffe3a3" />
+
+      <PiggyBank gltf={piggyGltf} progress={progress} turnRef={turnRef} />
+      <CoinField gltf={coinGltf} progress={progress} />
+
+      <Sparkles
+        count={20}
+        scale={4}
+        size={2}
+        speed={0.2}
+        color="#EFCB7E"
+        opacity={0.35}
+        position={[0, BELLY.slotY * 0.6, 0]}
+      />
     </group>
   );
 }
+
+useGLTF.preload(COIN_URL);
+useGLTF.preload(PIGGY_URL);
