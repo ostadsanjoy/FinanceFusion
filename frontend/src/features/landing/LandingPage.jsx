@@ -1,10 +1,23 @@
-import React, { Suspense, lazy, useRef } from 'react';
+import React, { Suspense, lazy, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, useScroll, useMotionValueEvent } from 'framer-motion';
+import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
 import { ArrowRight, ChevronDown } from 'lucide-react';
 import MagneticButton from '../../components/ui/MagneticButton';
 
 const HeroCanvas = lazy(() => import('./scene/HeroCanvas'));
+const ConfettiPop = lazy(() => import('../../components/ui/ConfettiPop'));
+
+const HEADLINE_PHRASES = ['Finance Fusion.', 'Log expenses.', 'Set budgets.', 'Watch money grow.'];
+
+const renderPhrase = (text) =>
+  text.endsWith('.') ? (
+    <>
+      {text.slice(0, -1)}
+      <span className="text-accent">.</span>
+    </>
+  ) : (
+    text
+  );
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -15,12 +28,26 @@ const fadeUp = {
   }),
 };
 
-const Hero = ({ navigate }) => {
-  const sectionRef = useRef(null);
+const LandingPage = () => {
+  const navigate = useNavigate();
+  const canvasWrapRef = useRef(null);
+  const headlineWrapRef = useRef(null);
   const progressRef = useRef(0);
+  const [headlineStep, setHeadlineStep] = useState(0);
+  const [burstKey, setBurstKey] = useState(0);
+  const [burstOrigin, setBurstOrigin] = useState({ x: 0, y: 0 });
+  const [hasClickedHeadline, setHasClickedHeadline] = useState(false);
+
+  const handleHeadlineClick = (e) => {
+    const rect = headlineWrapRef.current.getBoundingClientRect();
+    setBurstOrigin({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    setHeadlineStep((s) => (s + 1) % HEADLINE_PHRASES.length);
+    setBurstKey((k) => k + 1);
+    setHasClickedHeadline(true);
+  };
 
   const { scrollYProgress } = useScroll({
-    target: sectionRef,
+    target: canvasWrapRef,
     offset: ['start start', 'end end'],
   });
   useMotionValueEvent(scrollYProgress, 'change', (v) => {
@@ -28,66 +55,115 @@ const Hero = ({ navigate }) => {
   });
 
   return (
-    <section ref={sectionRef} className="relative h-[260vh]">
-      <div className="sticky top-0 h-screen w-full overflow-hidden bg-canvas">
+    <div className="min-h-screen bg-canvas font-sans text-ink selection:bg-accent selection:text-white">
+      <div ref={canvasWrapRef} className="relative h-[320vh]">
+        <div className="sticky top-0 h-screen w-full overflow-hidden">
+          <Suspense fallback={<div className="absolute inset-0" />}>
+            <HeroCanvas className="absolute inset-0" progress={progressRef} />
+          </Suspense>
+          <div className="absolute bottom-0 inset-x-0 h-28 md:h-40 bg-gradient-to-t from-canvas to-transparent pointer-events-none" />
+        </div>
 
-        <Suspense fallback={<div className="absolute inset-0" />}>
-          <HeroCanvas className="absolute inset-0 z-0" progress={progressRef} />
-        </Suspense>
-
-        <div className="absolute inset-0 z-[5] bg-gradient-to-r from-canvas via-canvas/85 md:via-canvas/80 to-transparent w-full md:w-3/5 pointer-events-none" />
-
-        <motion.nav
-          variants={fadeUp}
-          initial="hidden"
-          animate="show"
-          className="absolute top-0 left-0 right-0 z-20 flex justify-between items-center px-5 md:px-10 py-6"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 bg-ink rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-lg">F</span>
+        <div className="absolute inset-x-0 top-0 z-10">
+          <motion.nav
+            variants={fadeUp}
+            initial="hidden"
+            animate="show"
+            className="flex justify-between items-center px-5 md:px-10 py-6"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 bg-ink rounded-full flex items-center justify-center">
+                <span className="text-white font-bold text-lg">F</span>
+              </div>
+              <span className="text-lg font-semibold tracking-tight">Finance Fusion</span>
             </div>
-            <span className="text-lg font-semibold tracking-tight">Finance Fusion</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/login')}
-              className="hidden sm:inline text-sm font-medium hover:text-accent transition-colors px-2"
-            >
-              Login
-            </button>
-            <MagneticButton
-              strength={0.3}
-              onClick={() => navigate('/signup')}
-              className="px-5 py-2.5 bg-ink text-white rounded-full text-sm font-medium gap-1.5 hover:shadow-lg transition-shadow"
-            >
-              Get Started
-              <ArrowRight className="w-4 h-4" />
-            </MagneticButton>
-          </div>
-        </motion.nav>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate('/login')}
+                className="hidden sm:inline text-sm font-medium hover:text-accent transition-colors px-2"
+              >
+                Login
+              </button>
+              <MagneticButton
+                strength={0.3}
+                onClick={() => navigate('/signup')}
+                className="px-5 py-2.5 bg-ink text-white rounded-full text-sm font-medium gap-1.5 hover:shadow-lg transition-shadow"
+              >
+                Get Started
+                <ArrowRight className="w-4 h-4" />
+              </MagneticButton>
+            </div>
+          </motion.nav>
 
-        <div className="relative z-10 h-full flex items-center px-5 md:px-10">
-          <div className="max-w-lg">
-            <motion.span
-              custom={0.1}
-              variants={fadeUp}
-              initial="hidden"
-              animate="show"
-              className="px-3 py-1 rounded-full bg-white/70 border border-black/5 text-xs font-medium text-gray-500 uppercase tracking-wider mb-6 inline-block"
-            >
-              Privacy-first · v1.0
-            </motion.span>
-
-            <motion.h1
+          <div className="max-w-lg px-5 md:px-10 pt-6">
+            <motion.div
+              ref={headlineWrapRef}
               custom={0.2}
               variants={fadeUp}
               initial="hidden"
               animate="show"
-              className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tighter leading-[0.95] mb-6"
+              className="relative inline-block mb-6"
             >
-              Finance Fusion<span className="text-accent">.</span>
-            </motion.h1>
+              {burstKey > 0 && (
+                <Suspense fallback={null}>
+                  <ConfettiPop key={burstKey} x={burstOrigin.x} y={burstOrigin.y} />
+                </Suspense>
+              )}
+
+              <AnimatePresence mode="wait">
+                <motion.h1
+                  key={headlineStep}
+                  onClick={handleHeadlineClick}
+                  initial={{ scale: 0.4, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 1.5, opacity: 0 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+                  className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tighter leading-[0.95] whitespace-nowrap cursor-pointer select-none"
+                >
+                  {renderPhrase(HEADLINE_PHRASES[headlineStep])}
+                </motion.h1>
+              </AnimatePresence>
+
+              {!hasClickedHeadline && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ delay: 1, duration: 0.6 }}
+                  className="absolute -top-14 left-1 flex flex-col items-center gap-1 pointer-events-none"
+                >
+                  <span
+                    style={{ fontFamily: "'Caveat', cursive" }}
+                    className="text-2xl text-[#C9B59C] -rotate-3"
+                  >
+                    click it!
+                  </span>
+                  <motion.svg
+                    width="20"
+                    height="26"
+                    viewBox="0 0 20 26"
+                    fill="none"
+                    animate={{ y: [0, 5, 0] }}
+                    transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                  >
+                    <path
+                      d="M10 2V22"
+                      stroke="#C9B59C"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M3 15L10 22L17 15"
+                      stroke="#C9B59C"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
+                  </motion.svg>
+                </motion.div>
+              )}
+            </motion.div>
 
             <motion.p
               custom={0.3}
@@ -125,23 +201,36 @@ const Hero = ({ navigate }) => {
               </motion.span>
               Scroll to watch it fill up
             </motion.div>
+
+            <div className="mt-40 max-w-md">
+              <span className="px-3 py-1 rounded-full bg-white/70 border border-black/5 text-xs font-medium text-gray-500 uppercase tracking-wider mb-4 inline-block">
+                More about Finance Fusion
+              </span>
+              <h2 className="text-3xl font-bold tracking-tight mb-4">
+                Under Construction
+              </h2>
+              <p className="text-gray-500 leading-relaxed">
+                wait up folks generational finance management app is in the making. Good things takes time Baby. Many premium features are and also a lot of them are coming soon. Stay tuned for more updates and features as we continue to build the best finance management experience for you.
+              </p>
+            </div>
           </div>
         </div>
       </div>
-    </section>
-  );
-};
 
-const LandingPage = () => {
-  const navigate = useNavigate();
-
-  return (
-    <div className="min-h-screen bg-canvas font-sans text-ink selection:bg-accent selection:text-white">
-
-      <Hero navigate={navigate} />
+      <section className="min-h-[200vh] flex items-center justify-center px-6 text-center">
+        <div className="max-w-xl">
+          <span className="px-3 py-1 rounded-full bg-white/70 border border-black/5 text-xs font-medium text-gray-500 uppercase tracking-wider mb-6 inline-block">
+            Coming up
+          </span>
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">App Details here</h2>
+          <p className="text-gray-500 text-lg leading-relaxed">
+            Coming up within a week.
+          </p>
+        </div>
+      </section>
 
       <footer className="mt-24 pb-8 text-center text-sm text-gray-300">
-        <p>© 2026 Finance Fusion. Crafted by Sanjoy.</p>
+        <p>© 2026 Finance Fusion. Crafted by Sanjoy Ostad.</p>
       </footer>
     </div>
   );

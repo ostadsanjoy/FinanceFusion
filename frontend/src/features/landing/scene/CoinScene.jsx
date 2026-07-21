@@ -1,5 +1,5 @@
 import React, { useRef, useMemo } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import { useGLTF, Sparkles, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 
@@ -14,9 +14,11 @@ const RAW = { halfWidth: 0.0427, height: 0.0887, halfDepth: 0.05 };
 
 const PIGGY_SCALE_START = 70;
 const PIGGY_SCALE_END = 60;
+const PIGGY_SCALE = PIGGY_SCALE_END;
+
 const GROUP_POS_START = new THREE.Vector3(4.5, -3.8, 0);
 const GROUP_POS_END = new THREE.Vector3(3, -3.5, 0);
-const PIGGY_SCALE = PIGGY_SCALE_END;
+const GROUP_POS_EXIT = new THREE.Vector3(GROUP_POS_END.x, -0.6, GROUP_POS_END.z);
 
 const BELLY = {
   floorY: RAW.height * PIGGY_SCALE * 0.14,
@@ -30,14 +32,10 @@ const COIN_DIAMETER = RAW.height * PIGGY_SCALE * 0.22;
 
 const SLOT_POS = new THREE.Vector3(0, BELLY.slotY, BELLY.slotZ);
 
-const TURN_END = 0.22;
+const TURN_END = 0.15;
+const FILL_END = 0.75;
 const SIDE_ANGLE = -1.35;
 const FRONT_ANGLE = 0.05;
-
-const REVEAL_START = 0.85;
-const REVEAL_END = 1;
-const BASE_FOV = 33;
-const REVEALED_FOV = 45;
 
 const easeInOut = (t) => t * t * (3 - 2 * t);
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
@@ -139,7 +137,7 @@ function CoinField({ gltf, progress }) {
   useFrame(() => {
     if (!meshRef.current) return;
     const raw = progress.current;
-    const p = Math.min(Math.max((raw - TURN_END) / (1 - TURN_END), 0), 1);
+    const p = Math.min(Math.max((raw - TURN_END) / (FILL_END - TURN_END), 0), 1);
 
     for (let i = 0; i < NUM_COINS; i++) {
       const { start, end } = windows[i];
@@ -174,19 +172,6 @@ function CoinField({ gltf, progress }) {
   );
 }
 
-function CameraRig({ progress }) {
-  const { camera } = useThree();
-
-  useFrame(() => {
-    const p = progress.current;
-    const t = easeInOut(Math.min(Math.max((p - REVEAL_START) / (REVEAL_END - REVEAL_START), 0), 1));
-    camera.fov = THREE.MathUtils.lerp(BASE_FOV, REVEALED_FOV, t);
-    camera.updateProjectionMatrix();
-  });
-
-  return null;
-}
-
 export default function CoinScene({ interaction, progress }) {
   const group = useRef();
   const turnRef = useRef(FRONT_ANGLE);
@@ -207,14 +192,21 @@ export default function CoinScene({ interaction, progress }) {
     group.current.rotation.y = turnRef.current + interaction.rotY;
     group.current.rotation.x = interaction.rotX;
 
-    const t = easeInOut(Math.min(Math.max(progress.current / TURN_END, 0), 1));
-    group.current.position.lerpVectors(GROUP_POS_START, GROUP_POS_END, t);
+    const p = progress.current;
+    if (p <= TURN_END) {
+      const t = easeInOut(Math.min(Math.max(p / TURN_END, 0), 1));
+      group.current.position.lerpVectors(GROUP_POS_START, GROUP_POS_END, t);
+    } else if (p <= FILL_END) {
+      group.current.position.copy(GROUP_POS_END);
+    } else {
+      const t = easeInOut(Math.min(Math.max((p - FILL_END) / (1 - FILL_END), 0), 1));
+      group.current.position.lerpVectors(GROUP_POS_END, GROUP_POS_EXIT, t);
+    }
   });
 
   return (
     <group ref={group} position={GROUP_POS_START.toArray()}>
-      <CameraRig progress={progress} />
-      <Environment preset="apartment" />
+      <Environment preset="city" />
       <ambientLight intensity={0.5} />
       <directionalLight position={[4, 5, 4]} intensity={1.1} color="#fff3dc" />
       <directionalLight position={[-4, -1, -3]} intensity={0.3} color="#8fce9c" />
