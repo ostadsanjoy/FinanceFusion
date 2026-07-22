@@ -46,12 +46,12 @@ const rand = (seed) => {
 };
 
 function pilePosition(i) {
-  const layer = Math.floor(i / PER_LAYER);
-  const slot = i % PER_LAYER;
-  const angle = (slot / PER_LAYER) * Math.PI * 2 + layer * 0.6;
-  const radius = BELLY.radius * (0.25 + rand(i) * 0.7);
-  const layerHeight = (BELLY.halfFillY - BELLY.floorY) / LAYERS;
-  const y = BELLY.floorY + layer * layerHeight + rand(i * 2.1) * layerHeight * 0.3;
+  const t = i / (NUM_COINS - 1);
+  const mound = 1 - t * 0.25;
+  const angle = rand(i * 3.7) * Math.PI * 2;
+  const radius = BELLY.radius * mound * (0.15 + rand(i * 5.3) * 0.95);
+  const heightSpan = BELLY.halfFillY - BELLY.floorY;
+  const y = BELLY.floorY + t * heightSpan + (rand(i * 9.1) - 0.5) * heightSpan * 0.22;
   return new THREE.Vector3(
     Math.cos(angle) * radius,
     y,
@@ -155,8 +155,11 @@ function CoinField({ gltf, progress }) {
       } else {
         const local = easeOutCubic((t - 0.5) / 0.5);
         dummy.position.lerpVectors(SLOT_POS, rests[i], local);
-        const settle = (1 - local) * Math.PI * 2.5;
-        dummy.rotation.set(Math.PI * 5 + settle, rand(i) * 6, (1 - local) * 0.8);
+        const decay = 1 - local;
+        const restTiltX = (rand(i * 4.2) - 0.5) * 0.55;
+        const restTiltZ = (rand(i * 6.6) - 0.5) * 0.5;
+        const tumble = decay * Math.PI * 2.5 * (rand(i * 8.4) > 0.5 ? 1 : -1);
+        dummy.rotation.set(Math.PI * 5 + restTiltX + tumble, rand(i) * 6, restTiltZ + decay * 0.8);
       }
 
       const s = t > 0.02 ? 1 : 0;

@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useRef, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
 import { ArrowRight, ChevronDown } from 'lucide-react';
@@ -37,6 +37,15 @@ const LandingPage = () => {
   const [burstKey, setBurstKey] = useState(0);
   const [burstOrigin, setBurstOrigin] = useState({ x: 0, y: 0 });
   const [hasClickedHeadline, setHasClickedHeadline] = useState(false);
+  const [confettiData, setConfettiData] = useState(null);
+
+  useEffect(() => {
+    fetch('/lottie/confetti.json')
+      .then((res) => res.json())
+      .then(setConfettiData)
+      .catch(() => {});
+    import('../../components/ui/ConfettiPop');
+  }, []);
 
   const handleHeadlineClick = (e) => {
     const rect = headlineWrapRef.current.getBoundingClientRect();
@@ -106,7 +115,7 @@ const LandingPage = () => {
             >
               {burstKey > 0 && (
                 <Suspense fallback={null}>
-                  <ConfettiPop key={burstKey} x={burstOrigin.x} y={burstOrigin.y} />
+                  <ConfettiPop key={burstKey} x={burstOrigin.x} y={burstOrigin.y} animationData={confettiData} />
                 </Suspense>
               )}
 
@@ -207,10 +216,11 @@ const LandingPage = () => {
                 More about Finance Fusion
               </span>
               <h2 className="text-3xl font-bold tracking-tight mb-4">
-                Under Construction
+                Placeholder — tell me what goes here
               </h2>
               <p className="text-gray-500 leading-relaxed">
-                wait up folks generational finance management app is in the making. Good things takes time Baby. Many premium features are and also a lot of them are coming soon. Stay tuned for more updates and features as we continue to build the best finance management experience for you.
+                This block scrolls past while the coins are still dropping behind it.
+                Tell me what you want it to say and I'll build it out properly.
               </p>
             </div>
           </div>
@@ -222,15 +232,15 @@ const LandingPage = () => {
           <span className="px-3 py-1 rounded-full bg-white/70 border border-black/5 text-xs font-medium text-gray-500 uppercase tracking-wider mb-6 inline-block">
             Coming up
           </span>
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">App Details here</h2>
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">App details go here</h2>
           <p className="text-gray-500 text-lg leading-relaxed">
-            Coming up within a week.
+            Placeholder section — tell me what you want here and I'll build it out.
           </p>
         </div>
       </section>
 
       <footer className="mt-24 pb-8 text-center text-sm text-gray-300">
-        <p>© 2026 Finance Fusion. Crafted by Sanjoy Ostad.</p>
+        <p>© 2026 Finance Fusion. Crafted by Sanjoy.</p>
       </footer>
     </div>
   );

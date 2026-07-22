@@ -1,23 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import Lottie from 'lottie-react';
 
-export default function ConfettiPop({ x, y, size = 260, onComplete }) {
-  const [data, setData] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/lottie/confetti.json')
-      .then((res) => res.json())
-      .then((json) => {
-        if (!cancelled) setData(json);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (!data) return null;
+export default function ConfettiPop({ x, y, animationData, size = 260, onComplete }) {
+  if (!animationData) return null;
 
   return (
     <div
@@ -30,7 +15,7 @@ export default function ConfettiPop({ x, y, size = 260, onComplete }) {
         transform: 'translate(-50%, -50%)',
       }}
     >
-      <Lottie animationData={data} loop={false} autoplay onComplete={onComplete} />
+      <Lottie animationData={animationData} loop={false} autoplay onComplete={onComplete} />
     </div>
   );
 }
