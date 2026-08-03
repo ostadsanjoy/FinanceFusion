@@ -8,11 +8,12 @@ import {
   signOut,
   updateProfile,
 } from 'firebase/auth';
-import { auth, googleProvider } from './firebase';
+import { auth, googleProvider, getCurrentToken } from './firebase';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
-const getAuthHeader = () => {
-  const token = localStorage.getItem('token');
+
+const getAuthHeader = async () => {
+  const token = await getCurrentToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
@@ -57,19 +58,19 @@ export const forgotPassword = async (email) => {
 export const getTransactions = async () => {
   try {
     const response = await axios.get(`${API_URL}/transactions`, {
-      headers: getAuthHeader(),
+      headers: await getAuthHeader(),
     });
     return response.data;
   } catch (error) {
     console.error("Fetch error:", error);
-    return [];
+    throw error;
   }
 };
 
 export const createTransaction = async (transactionData) => {
   try {
     const response = await axios.post(`${API_URL}/transactions`, transactionData, {
-      headers: getAuthHeader(),
+      headers: await getAuthHeader(),
     });
     return response.data;
   } catch (error) {
@@ -81,7 +82,7 @@ export const createTransaction = async (transactionData) => {
 export const updateTransaction = async (id, transactionData) => {
   try {
     const response = await axios.put(`${API_URL}/transactions/${id}`, transactionData, {
-      headers: getAuthHeader(),
+      headers: await getAuthHeader(),
     });
     return response.data;
   } catch (error) {
@@ -93,7 +94,7 @@ export const updateTransaction = async (id, transactionData) => {
 export const deleteTransaction = async (id) => {
   try {
     await axios.delete(`${API_URL}/transactions/${id}`, {
-      headers: getAuthHeader(),
+      headers: await getAuthHeader(),
     });
   } catch (error) {
     console.error("Delete error:", error);
@@ -104,19 +105,19 @@ export const deleteTransaction = async (id) => {
 export const getBudgets = async () => {
   try {
     const response = await axios.get(`${API_URL}/budgets`, {
-      headers: getAuthHeader(),
+      headers: await getAuthHeader(),
     });
     return response.data;
   } catch (error) {
     console.error("Fetch budgets error:", error);
-    return [];
+    throw error;
   }
 };
 
 export const setBudget = async (category, amount) => {
   try {
     const response = await axios.post(`${API_URL}/budgets`, { category, amount }, {
-      headers: getAuthHeader(),
+      headers: await getAuthHeader(),
     });
     return response.data;
   } catch (error) {
@@ -131,14 +132,19 @@ export const importTransactions = async (file, year) => {
   if (year) formData.append('year', year);
 
   const response = await axios.post(`${API_URL}/transactions/import`, formData, {
-    headers: { ...getAuthHeader(), 'Content-Type': 'multipart/form-data' },
+    headers: { ...(await getAuthHeader()), 'Content-Type': 'multipart/form-data' },
   });
   return response.data; // { imported, skipped }
 };
 
-export const exportTransactions = async () => {
+export const exportTransactions = async ({ year, month } = {}) => {
+  const params = {};
+  if (year) params.year = year;
+  if (month) params.month = month;
+
   const response = await axios.get(`${API_URL}/transactions/export`, {
-    headers: getAuthHeader(),
+    headers: await getAuthHeader(),
+    params,
     responseType: 'blob',
   });
 
@@ -146,7 +152,10 @@ export const exportTransactions = async () => {
   const url = window.URL.createObjectURL(new Blob([response.data]));
   const link = document.createElement('a');
   link.href = url;
-  const filename = `spends_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+  const filename =
+    year && month
+      ? `spends_export_${year}_${String(month).padStart(2, '0')}.xlsx`
+      : `spends_export_${new Date().toISOString().split('T')[0]}.xlsx`;
   link.setAttribute('download', filename);
   document.body.appendChild(link);
   link.click();

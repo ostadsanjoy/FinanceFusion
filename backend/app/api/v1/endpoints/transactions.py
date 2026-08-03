@@ -93,13 +93,24 @@ async def import_transactions(
 
 
 @router.get("/export")
-def export_transactions(db=Depends(get_db), current_user: dict = Depends(get_current_user)):
+def export_transactions(
+    year: Optional[int] = None,
+    month: Optional[int] = None,
+    db=Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
     docs = (
         db.collection(TRANSACTIONS)
         .where(filter=FieldFilter("user_id", "==", current_user["id"]))
         .stream()
     )
     txs = [doc.to_dict() for doc in docs]
+
+    if year is not None:
+        txs = [t for t in txs if t.get("date") and t["date"].year == year]
+    if month is not None:
+        txs = [t for t in txs if t.get("date") and t["date"].month == month]
+
     txs.sort(key=lambda t: t.get("date") or datetime.min)
 
     wb = Workbook()
@@ -166,7 +177,10 @@ def export_transactions(db=Depends(get_db), current_user: dict = Depends(get_cur
     wb.save(buffer)
     buffer.seek(0)
 
-    filename = f"spends_export_{datetime.utcnow().strftime('%Y%m%d')}.xlsx"
+    if year is not None and month is not None:
+        filename = f"spends_export_{year}_{month:02d}.xlsx"
+    else:
+        filename = f"spends_export_{datetime.utcnow().strftime('%Y%m%d')}.xlsx"
     return StreamingResponse(
         buffer,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, onIdTokenChanged } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, onAuthStateChanged, onIdTokenChanged } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -14,6 +14,19 @@ const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+export const authReady = new Promise((resolve) => {
+  const unsubscribe = onAuthStateChanged(auth, (user) => {
+    unsubscribe();
+    resolve(user);
+  });
+});
+
+export const getCurrentToken = async () => {
+  await authReady;
+  if (!auth.currentUser) return null;
+  return auth.currentUser.getIdToken();
+};
+
 onIdTokenChanged(auth, async (user) => {
   if (user) {
     const token = await user.getIdToken();

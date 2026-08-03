@@ -10,6 +10,7 @@ const Budget = () => {
   const [spending, setSpending] = useState({});
   const [editMode, setEditMode] = useState(null);
   const [tempAmount, setTempAmount] = useState('');
+  const [loadError, setLoadError] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -17,7 +18,14 @@ const Budget = () => {
   }, []);
 
   const fetchData = async () => {
-    const [txns, budgetList] = await Promise.all([getTransactions(), getBudgets()]);
+    setLoadError(false);
+    let txns, budgetList;
+    try {
+      [txns, budgetList] = await Promise.all([getTransactions(), getBudgets()]);
+    } catch (error) {
+      setLoadError(true);
+      return;
+    }
 
     const now = new Date();
     const currentTxns = txns.filter(t => {
@@ -58,6 +66,20 @@ const Budget = () => {
           <p className="text-accent text-sm">Set limits to track your health</p>
         </div>
       </header>
+
+      {loadError && (
+        <div className="mb-8 flex items-center justify-between gap-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl px-5 py-4 max-w-5xl mx-auto">
+          <span className="text-sm font-medium">
+            Couldn't load your data. Check your connection and try again.
+          </span>
+          <button
+            onClick={fetchData}
+            className="text-sm font-semibold underline shrink-0"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
         {CATEGORIES.map(cat => {

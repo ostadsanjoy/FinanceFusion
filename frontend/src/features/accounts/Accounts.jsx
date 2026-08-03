@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getTransactions, createTransaction, updateTransaction, deleteTransaction } from '../../services/api';
+import { getTransactions, createTransaction, updateTransaction, deleteTransaction, exportTransactions } from '../../services/api';
 import GlassCard from '../../components/ui/GlassCard';
 import AddTransactionModal from '../rapid-log/AddTransactionModal';
-import { ArrowLeft, Calendar, ChevronDown, ChevronRight, Plus, Pencil } from 'lucide-react';
+import { ArrowLeft, Calendar, ChevronDown, ChevronRight, Plus, Pencil, Download } from 'lucide-react';
 import { categoryIcon } from '../../constants/categories';
 
 const Accounts = () => {
   const [years, setYears] = useState({});
   const [expandedYear, setExpandedYear] = useState(null);
   const [expandedMonth, setExpandedMonth] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [exportingKey, setExportingKey] = useState(null);
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -23,19 +26,30 @@ const Accounts = () => {
   }, []);
 
   const fetchHistory = async () => {
-    const data = await getTransactions();
+    setIsLoading(true);
+    setLoadError(false);
+
+    let data;
+    try {
+      data = await getTransactions();
+    } catch (error) {
+      setLoadError(true);
+      setIsLoading(false);
+      return;
+    }
     
     // Group By Year -> Month
-    // { "2025": { total: 5000, months: { "October": { total: 2000, transactions: [] } } } }
+    // { "2025": { total: 5000, months: { "October": { total: 2000, monthIndex: 10, transactions: [] } } } }
     const grouped = {};
 
     data.forEach(t => {
       const date = new Date(t.date);
       const year = date.getFullYear();
       const month = date.toLocaleString('default', { month: 'long' });
+      const monthIndex = date.getMonth() + 1;
 
       if (!grouped[year]) grouped[year] = { total: 0, months: {} };
-      if (!grouped[year].months[month]) grouped[year].months[month] = { total: 0, transactions: [] };
+      if (!grouped[year].months[month]) grouped[year].months[month] = { total: 0, monthIndex, transactions: [] };
 
       grouped[year].total += t.amount;
       grouped[year].months[month].total += t.amount;
@@ -45,6 +59,19 @@ const Accounts = () => {
     setYears(grouped);
     // Auto-expand current year
     setExpandedYear(new Date().getFullYear().toString());
+    setIsLoading(false);
+  };
+
+  const handleExportMonth = async (e, year, monthIndex, monthKey) => {
+    e.stopPropagation();
+    setExportingKey(monthKey);
+    try {
+      await exportTransactions({ year: Number(year), month: monthIndex });
+    } catch (error) {
+      alert('Export failed. Please try again.');
+    } finally {
+      setExportingKey(null);
+    }
   };
 
   // --- Handlers ---
@@ -121,7 +148,21 @@ const Accounts = () => {
       </div>
 
       <div className="space-y-6 max-w-4xl mx-auto">
-        {Object.keys(years).length === 0 ? (
+        {loadError ? (
+          <div className="flex flex-col items-center gap-3 mt-10">
+            <p className="text-red-500 text-center">
+              Couldn't load your records. Check your connection and try again.
+            </p>
+            <button
+              onClick={fetchHistory}
+              className="text-sm font-semibold text-accent underline"
+            >
+              Retry
+            </button>
+          </div>
+        ) : isLoading ? (
+          <p className="text-gray-400 text-center mt-10">Loading records...</p>
+        ) : Object.keys(years).length === 0 ? (
            <p className="text-gray-400 text-center mt-10">No records found. Click "Add Record" to start.</p>
         ) : (
           // Sort years descending
@@ -169,6 +210,14 @@ const Accounts = () => {
                                         </div>
                                         <div className="flex items-center gap-3">
                                             <span className="font-medium">₹{monthData.total.toLocaleString()}</span>
+                                            <button
+                                                onClick={(e) => handleExportMonth(e, year, monthData.monthIndex, `${year}-${month}`)}
+                                                disabled={exportingKey === `${year}-${month}`}
+                                                className="p-1.5 rounded-full hover:bg-surface text-gray-400 hover:text-accent transition-colors disabled:opacity-50"
+                                                title={`Export ${month} ${year}`}
+                                            >
+                                                <Download className="w-4 h-4" />
+                                            </button>
                                             {isMonthOpen ? <ChevronDown className="w-4 h-4 text-gray-400"/> : <ChevronRight className="w-4 h-4 text-gray-400"/>}
                                         </div>
                                     </div>

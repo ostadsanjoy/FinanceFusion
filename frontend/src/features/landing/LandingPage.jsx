@@ -211,18 +211,91 @@ const LandingPage = () => {
               Scroll to watch it fill up
             </motion.div>
 
-            <div className="mt-40 max-w-md">
+            <motion.div
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.4 }}
+              custom={0}
+              className="mt-40 max-w-lg"
+            >
               <span className="px-3 py-1 rounded-full bg-white/70 border border-black/5 text-xs font-medium text-gray-500 uppercase tracking-wider mb-4 inline-block">
-                More about Finance Fusion
+                Why it matters
               </span>
-              <h2 className="text-3xl font-bold tracking-tight mb-4">
-                Placeholder — tell me what goes here
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-5 leading-tight">
+                Money you can't see is money you can't manage.
               </h2>
-              <p className="text-gray-500 leading-relaxed">
-                This block scrolls past while the coins are still dropping behind it.
-                Tell me what you want it to say and I'll build it out properly.
+              <p className="text-gray-500 leading-relaxed mb-5 text-lg">
+                Most people don't lose money to bad decisions — they lose it
+                to invisibility. A coffee here, a forgotten subscription
+                there, a small "just this once" splurge. None of it feels big
+                in the moment. That's exactly the problem: your brain is bad
+                at tracking hundreds of tiny decisions, and by the time you
+                check your balance, the story has already been written.
               </p>
-            </div>
+              <p className="text-gray-500 leading-relaxed mb-10 text-lg">
+                It's not about earning more, either. Plenty of people with
+                rising incomes still end every month wondering where it all
+                went — because more money without more visibility just means
+                bigger blind spots. The gap between what you earn and what
+                you keep isn't closed by a raise. It's closed by knowing.
+              </p>
+
+              <h3 className="text-2xl font-semibold mb-4 tracking-tight">
+                Finance Fusion makes it visible.
+              </h3>
+              <p className="text-gray-500 leading-relaxed mb-5 text-lg">
+                We built Finance Fusion around one idea: you can't fix what
+                you can't see. Every rupee you log becomes part of a running,
+                honest picture of where your money actually goes — not a
+                guess, not a vague feeling, an actual number you can look at.
+              </p>
+              <p className="text-gray-500 leading-relaxed mb-10 text-lg">
+                That visibility does the heavy lifting most budgeting apps
+                leave to willpower. Instead of asking you to remember your
+                limits, we show them to you before you cross them.
+              </p>
+
+              <ul className="space-y-5 mb-10">
+                <li className="flex gap-3">
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent mt-2.5 shrink-0" />
+                  <span className="text-gray-500 leading-relaxed">
+                    <strong className="text-ink font-medium">Track everything in seconds</strong> —
+                    no spreadsheets, no friction. Log an expense faster than
+                    you'd forget it.
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent mt-2.5 shrink-0" />
+                  <span className="text-gray-500 leading-relaxed">
+                    <strong className="text-ink font-medium">See patterns, not just numbers</strong> —
+                    spot the subscription you forgot, the category quietly
+                    eating your budget.
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent mt-2.5 shrink-0" />
+                  <span className="text-gray-500 leading-relaxed">
+                    <strong className="text-ink font-medium">Get warned before you overspend</strong> —
+                    set a limit once, and we'll flag it before it becomes a
+                    problem, not after.
+                  </span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent mt-2.5 shrink-0" />
+                  <span className="text-gray-500 leading-relaxed">
+                    <strong className="text-ink font-medium">Watch your savings compound</strong> —
+                    every rupee you don't waste is a rupee working toward a
+                    goal you actually chose.
+                  </span>
+                </li>
+              </ul>
+
+              <p className="text-gray-500 leading-relaxed text-lg">
+                Personal finance isn't about restriction. It's about control —
+                and control starts with seeing clearly.
+              </p>
+            </motion.div>
           </div>
         </div>
       </div>

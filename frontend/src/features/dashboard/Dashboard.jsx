@@ -16,6 +16,7 @@ const Dashboard = () => {
   const [totalSpent, setTotalSpent] = useState(0);
   const [chartMode, setChartMode] = useState('pie'); 
   const [comparisonData, setComparisonData] = useState([]); 
+  const [loadError, setLoadError] = useState(false);
   
   const navigate = useNavigate();
 
@@ -24,7 +25,14 @@ const Dashboard = () => {
   }, []);
 
   const fetchData = async () => {
-    const allData = await getTransactions();
+    setLoadError(false);
+    let allData;
+    try {
+      allData = await getTransactions();
+    } catch (error) {
+      setLoadError(true);
+      return;
+    }
     const now = new Date();
     
     // 1. Filter Current Month
@@ -200,6 +208,20 @@ const Dashboard = () => {
             </button>
         </div>
       </header>
+
+      {loadError && (
+        <div className="mb-8 flex items-center justify-between gap-4 bg-red-50 border border-red-200 text-red-700 rounded-2xl px-5 py-4">
+          <span className="text-sm font-medium">
+            Couldn't load your data. Check your connection and try again.
+          </span>
+          <button
+            onClick={fetchData}
+            className="text-sm font-semibold underline shrink-0"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {importMessage && (
         <div className="max-w-5xl mx-auto -mt-6 mb-6 p-3 bg-green-50 text-green-700 text-sm rounded-xl text-center">
