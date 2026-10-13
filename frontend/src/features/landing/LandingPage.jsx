@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
+import { motion, AnimatePresence, useScroll, useMotionValueEvent, useTransform } from 'framer-motion';
 import { ArrowRight, ChevronDown } from 'lucide-react';
 import MagneticButton from '../../components/ui/MagneticButton';
 
@@ -59,18 +59,81 @@ const LandingPage = () => {
     target: canvasWrapRef,
     offset: ['start start', 'end end'],
   });
+
   useMotionValueEvent(scrollYProgress, 'change', (v) => {
     progressRef.current = v;
   });
 
+  const pigX = useTransform(scrollYProgress, [0.4, 0.8], ["0%", "-25%"]);
+  const featuresX = useTransform(scrollYProgress, [0.4, 0.8], ["100%", "0%"]);
+
   return (
     <div className="min-h-screen bg-canvas font-sans text-ink selection:bg-accent selection:text-white">
-      <div ref={canvasWrapRef} className="relative h-[320vh]">
-        <div className="sticky top-0 h-screen w-full overflow-hidden">
-          <Suspense fallback={<div className="absolute inset-0" />}>
-            <HeroCanvas className="absolute inset-0" progress={progressRef} />
-          </Suspense>
-          <div className="absolute bottom-0 inset-x-0 h-28 md:h-40 bg-gradient-to-t from-canvas to-transparent pointer-events-none" />
+      <div ref={canvasWrapRef} className="relative h-[400vh]">
+        
+        <div className="sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center">
+          
+          <motion.div style={{ x: pigX }} className="absolute inset-0 w-full h-full">
+            <Suspense fallback={<div className="absolute inset-0" />}>
+              <HeroCanvas className="absolute inset-0" progress={progressRef} />
+            </Suspense>
+            <div className="absolute bottom-0 inset-x-0 h-28 md:h-40 bg-gradient-to-t from-canvas to-transparent pointer-events-none" />
+          </motion.div>
+
+          <motion.div
+            style={{ x: featuresX }}
+            className="absolute inset-y-0 right-0 w-full lg:w-[55%] flex flex-col justify-center px-6 md:px-12 lg:px-20 bg-white/70 backdrop-blur-2xl border-l border-black/5 z-30 shadow-[-20px_0_40px_rgba(0,0,0,0.03)] overflow-y-auto"
+          >
+            <div className="max-w-2xl mx-auto w-full py-12">
+              <span className="px-3 py-1 rounded-full bg-white/90 border border-black/5 text-xs font-medium text-gray-500 uppercase tracking-wider mb-4 inline-block">
+                Everything you need
+              </span>
+              <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-6 leading-tight">
+                Features designed for clarity and control.
+              </h2>
+              <p className="text-gray-500 text-lg leading-relaxed mb-10">
+                Managing money shouldn't feel like a second job. Finance Fusion gives you the exact tools you need to stay on top of your wealth without the overwhelming clutter.
+              </p>
+
+              <div className="flex flex-col gap-5">
+                <div className="p-6 rounded-3xl bg-white/60 border border-black/5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-5 hover:bg-white transition-colors">
+                  <div className="w-14 h-14 shrink-0 bg-accent/10 text-accent rounded-2xl flex items-center justify-center text-2xl">
+                    📊
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold mb-1 tracking-tight">Smart Expense Tracking</h3>
+                    <p className="text-gray-500 text-sm leading-relaxed">
+                      Log transactions in seconds. Our categorization automatically organizes your spending so you know exactly where your money goes.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-6 rounded-3xl bg-white/60 border border-black/5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-5 hover:bg-white transition-colors">
+                  <div className="w-14 h-14 shrink-0 bg-accent/10 text-accent rounded-2xl flex items-center justify-center text-2xl">
+                    🎯
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold mb-1 tracking-tight">Dynamic Budgets</h3>
+                    <p className="text-gray-500 text-sm leading-relaxed">
+                      Set flexible limits that adapt to your lifestyle. Get visual alerts before you overspend, keeping you safely within your means.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-6 rounded-3xl bg-white/60 border border-black/5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-5 hover:bg-white transition-colors">
+                  <div className="w-14 h-14 shrink-0 bg-accent/10 text-accent rounded-2xl flex items-center justify-center text-2xl">
+                    🌱
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold mb-1 tracking-tight">Wealth Analytics</h3>
+                    <p className="text-gray-500 text-sm leading-relaxed">
+                      Turn raw data into actionable insights. Beautiful charts help you spot trends, cut unnecessary costs, and watch your savings grow.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
         </div>
 
         <div className="absolute inset-x-0 top-0 z-10">
@@ -89,14 +152,14 @@ const LandingPage = () => {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => navigate('/login')}
-                className="hidden sm:inline text-sm font-medium hover:text-accent transition-colors px-2"
+                className="hidden sm:inline text-sm font-medium hover:text-accent transition-colors px-2 pointer-events-auto"
               >
                 Login
               </button>
               <MagneticButton
                 strength={0.3}
                 onClick={() => navigate('/signup')}
-                className="px-5 py-2.5 bg-ink text-white rounded-full text-sm font-medium gap-1.5 hover:shadow-lg transition-shadow"
+                className="px-5 py-2.5 bg-ink text-white rounded-full text-sm font-medium gap-1.5 hover:shadow-lg transition-shadow pointer-events-auto"
               >
                 Get Started
                 <ArrowRight className="w-4 h-4" />
@@ -111,7 +174,7 @@ const LandingPage = () => {
               variants={fadeUp}
               initial="hidden"
               animate="show"
-              className="relative inline-block mb-6"
+              className="relative inline-block mb-6 pointer-events-auto"
             >
               {burstKey > 0 && (
                 <Suspense fallback={null}>
@@ -185,7 +248,7 @@ const LandingPage = () => {
               and watch your savings actually add up.
             </motion.p>
 
-            <motion.div custom={0.4} variants={fadeUp} initial="hidden" animate="show">
+            <motion.div custom={0.4} variants={fadeUp} initial="hidden" animate="show" className="pointer-events-auto">
               <MagneticButton
                 onClick={() => navigate('/signup')}
                 className="px-8 py-4 bg-ink text-white rounded-full font-medium text-lg shadow-xl gap-2"
@@ -300,20 +363,8 @@ const LandingPage = () => {
         </div>
       </div>
 
-      <section className="min-h-[200vh] flex items-center justify-center px-6 text-center">
-        <div className="max-w-xl">
-          <span className="px-3 py-1 rounded-full bg-white/70 border border-black/5 text-xs font-medium text-gray-500 uppercase tracking-wider mb-6 inline-block">
-            Coming up
-          </span>
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">App details go here</h2>
-          <p className="text-gray-500 text-lg leading-relaxed">
-            Placeholder section — tell me what you want here and I'll build it out.
-          </p>
-        </div>
-      </section>
-
-      <footer className="mt-24 pb-8 text-center text-sm text-gray-300">
-        <p>© 2026 Finance Fusion. Crafted by Sanjoy.</p>
+      <footer className="py-10 text-center text-sm text-gray-400 bg-canvas relative z-40">
+        <p>© 2026 Finance Fusion. Crafted by Sanjoy Ostad.</p>
       </footer>
     </div>
   );
