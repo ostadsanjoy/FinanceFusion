@@ -18,7 +18,6 @@ const PIGGY_SCALE = PIGGY_SCALE_END;
 
 const GROUP_POS_START = new THREE.Vector3(4.5, -3.8, 0);
 const GROUP_POS_END = new THREE.Vector3(3, -3.5, 0);
-const GROUP_POS_EXIT = new THREE.Vector3(GROUP_POS_END.x, -0.6, GROUP_POS_END.z);
 const GROUP_POS_FLIP = new THREE.Vector3(-GROUP_POS_START.x, GROUP_POS_START.y - 0.3, 0);
 
 const BELLY = {
@@ -34,17 +33,17 @@ const COIN_DIAMETER = RAW.height * PIGGY_SCALE * 0.22;
 const SLOT_POS = new THREE.Vector3(0, BELLY.slotY, BELLY.slotZ);
 
 const TURN_END = 0.15;
-const FILL_END = 0.75;
+const FILL_END = 1;
 const SIDE_ANGLE = -1.35;
 const FRONT_ANGLE = 0.05;
 
 const FLIP_ANGLE = -SIDE_ANGLE;
 const FLIP_GROUP_SCALE = PIGGY_SCALE_START / PIGGY_SCALE_END;
-const FLIP_MOVE_SPAN = 0.8;
-const DROP_COIN_APPEAR_START = 0.55;
+const FLIP_MOVE_SPAN = 0.7;
+const DROP_COIN_APPEAR_START = 0.45;
 const DROP_COIN_APPEAR_SPAN = 0.15;
-const DROP_COIN_FALL_START = 0.8;
-const DROP_COIN_FALL_SPAN = 0.2;
+const DROP_COIN_FALL_START = 0.75;
+const DROP_COIN_FALL_SPAN = 0.25;
 const DROP_COIN_HOVER = 0.9;
 const DROP_COIN_HOVER_SCALE = 0.7;
 const DROP_COIN_REST = new THREE.Vector3(0.15, BELLY.halfFillY + COIN_DIAMETER * 0.2, BELLY.slotZ * 0.3);
@@ -271,15 +270,12 @@ export default function CoinScene({ interaction, progress, flip }) {
     const mirror = easeInOut(clamp01(f / FLIP_MOVE_SPAN));
     group.current.scale.setScalar(THREE.MathUtils.lerp(1, FLIP_GROUP_SCALE, mirror));
     if (f > 0) {
-      group.current.position.lerpVectors(GROUP_POS_EXIT, GROUP_POS_FLIP, mirror);
+      group.current.position.lerpVectors(GROUP_POS_END, GROUP_POS_FLIP, mirror);
     } else if (p <= TURN_END) {
       const t = easeInOut(clamp01(p / TURN_END));
       group.current.position.lerpVectors(GROUP_POS_START, GROUP_POS_END, t);
-    } else if (p <= FILL_END) {
-      group.current.position.copy(GROUP_POS_END);
     } else {
-      const t = easeInOut(clamp01((p - FILL_END) / (1 - FILL_END)));
-      group.current.position.lerpVectors(GROUP_POS_END, GROUP_POS_EXIT, t);
+      group.current.position.copy(GROUP_POS_END);
     }
   });
 

@@ -1,6 +1,15 @@
-import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence, useScroll, useMotionValueEvent, useTransform } from 'framer-motion';
+import {
+  motion,
+  AnimatePresence,
+  animate,
+  cubicBezier,
+  useMotionValue,
+  useMotionValueEvent,
+  useScroll,
+  useTransform,
+} from 'framer-motion';
 import { ArrowRight, ChevronDown } from 'lucide-react';
 import MagneticButton from '../../components/ui/MagneticButton';
 
@@ -9,8 +18,10 @@ const ConfettiPop = lazy(() => import('../../components/ui/ConfettiPop'));
 
 const HEADLINE_PHRASES = ['Finance Fusion.', 'Log expenses.', 'Set budgets.', 'Watch money grow.'];
 
-const VERTICAL_END = 2 / 3;
-const PAN_END = VERTICAL_END + (1 - VERTICAL_END) * 0.8;
+const SWOOP_TRIGGER = 0.6;
+const SWOOP_FORWARD_SECONDS = 2.4;
+const SWOOP_BACK_SECONDS = 1.6;
+const SWOOP_EASE = cubicBezier(0.65, 0, 0.35, 1);
 
 const renderPhrase = (text) =>
   text.endsWith('.') ? (
@@ -35,8 +46,13 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const canvasWrapRef = useRef(null);
   const headlineWrapRef = useRef(null);
+  const lastLineRef = useRef(null);
   const progressRef = useRef(0);
   const flipRef = useRef(0);
+  const triggerRef = useRef(0);
+  const swoopTargetRef = useRef(0);
+  const swoopAnimRef = useRef(null);
+  const [wrapHeight, setWrapHeight] = useState('450vh');
   const [headlineStep, setHeadlineStep] = useState(0);
   const [burstKey, setBurstKey] = useState(0);
   const [burstOrigin, setBurstOrigin] = useState({ x: 0, y: 0 });
@@ -59,21 +75,66 @@ const LandingPage = () => {
     setHasClickedHeadline(true);
   };
 
-  const { scrollYProgress } = useScroll({
-    target: canvasWrapRef,
-    offset: ['start start', 'end end'],
+  const { scrollY } = useScroll();
+  const swoop = useMotionValue(0);
+
+  const syncToScroll = useCallback(
+    (y) => {
+      const trigger = triggerRef.current;
+      progressRef.current = trigger > 0 ? Math.min(Math.max(y / trigger, 0), 1) : 0;
+      const target = trigger > 0 && y >= trigger ? 1 : 0;
+      if (target === swoopTargetRef.current) return;
+      swoopTargetRef.current = target;
+      if (swoopAnimRef.current) swoopAnimRef.current.stop();
+      swoopAnimRef.current = animate(swoop, target, {
+        duration: target ? SWOOP_FORWARD_SECONDS : SWOOP_BACK_SECONDS,
+        ease: 'linear',
+      });
+    },
+    [swoop]
+  );
+
+  const measure = useCallback(() => {
+    if (!canvasWrapRef.current || !lastLineRef.current) return;
+    const vh = window.innerHeight;
+    const wrapRect = canvasWrapRef.current.getBoundingClientRect();
+    const lastRect = lastLineRef.current.getBoundingClientRect();
+    const lastBottom = lastRect.bottom - wrapRect.top;
+    const trigger = Math.max(lastBottom - SWOOP_TRIGGER * vh, vh * 0.5);
+    triggerRef.current = trigger;
+    setWrapHeight(`${Math.round(trigger + vh * 1.8)}px`);
+    syncToScroll(window.scrollY);
+  }, [syncToScroll]);
+
+  useLayoutEffect(() => {
+    measure();
+    const observer = new ResizeObserver(measure);
+    if (lastLineRef.current && lastLineRef.current.parentElement) {
+      observer.observe(lastLineRef.current.parentElement);
+    }
+    window.addEventListener('resize', measure);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [measure]);
+
+  useMotionValueEvent(scrollY, 'change', syncToScroll);
+  useMotionValueEvent(swoop, 'change', (v) => {
+    flipRef.current = v;
   });
 
-  useMotionValueEvent(scrollYProgress, 'change', (v) => {
-    progressRef.current = Math.min(v / VERTICAL_END, 1);
-    flipRef.current = Math.min(Math.max((v - VERTICAL_END) / (1 - VERTICAL_END), 0), 1);
-  });
+  useEffect(() => () => {
+    if (swoopAnimRef.current) swoopAnimRef.current.stop();
+  }, []);
 
-  const detailsX = useTransform(scrollYProgress, [VERTICAL_END, PAN_END], ['100%', '0%']);
+  const detailsX = useTransform(swoop, [0.1, 0.8], ['100%', '0%'], { ease: SWOOP_EASE });
+  const leftOpacity = useTransform(swoop, [0, 0.3], [1, 0]);
 
   return (
     <div className="min-h-screen bg-canvas font-sans text-ink selection:bg-accent selection:text-white">
-      <div ref={canvasWrapRef} className="relative h-[550vh]">
+      <div ref={canvasWrapRef} style={{ height: wrapHeight }} className="relative">
 
         <div className="sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center">
 
@@ -140,7 +201,7 @@ const LandingPage = () => {
           </motion.div>
         </div>
 
-        <div className="absolute inset-x-0 top-0 z-10">
+        <motion.div style={{ opacity: leftOpacity }} className="absolute inset-x-0 top-0 z-10">
           <motion.nav
             variants={fadeUp}
             initial="hidden"
@@ -358,13 +419,13 @@ const LandingPage = () => {
                 </li>
               </ul>
 
-              <p className="text-gray-500 leading-relaxed text-lg">
+              <p ref={lastLineRef} className="text-gray-500 leading-relaxed text-lg">
                 Personal finance isn't about restriction. It's about control —
                 and control starts with seeing clearly.
               </p>
             </motion.div>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       <footer className="py-10 text-center text-sm text-gray-400 bg-canvas relative z-40">
