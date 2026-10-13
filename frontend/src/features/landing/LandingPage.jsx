@@ -14,24 +14,20 @@ const PAN_END = VERTICAL_END + (1 - VERTICAL_END) * 0.8;
 
 const OTHER_DETAILS = [
   {
-    icon: '📥',
     title: 'Import your statements',
-    text: 'Upload an XLSX or PDF bank statement and your transactions are read in and categorised for you.',
+    text: 'upload an XLSX or PDF bank statement and your transactions are read in for you.',
   },
   {
-    icon: '🏷️',
     title: 'Automatic categories',
-    text: 'Essentials, grocery, utilities, rent and more. Common merchants and keywords land in the right place on their own.',
+    text: 'essentials, grocery, utilities, rent and more are picked from common keywords.',
   },
   {
-    icon: '🔐',
     title: 'Secure sign-in',
-    text: 'Email and password or Google sign-in through Firebase Authentication, with password reset by email link.',
+    text: 'email or Google through Firebase Authentication, with password reset by email.',
   },
   {
-    icon: '📤',
     title: 'Export anytime',
-    text: 'Download your transaction history whenever you need it. Your data stays yours.',
+    text: 'download your transaction history whenever you need it.',
   },
 ];
 
@@ -95,7 +91,7 @@ const LandingPage = () => {
   const pigX = useTransform(
     scrollYProgress,
     [0.4 * VERTICAL_END, 0.8 * VERTICAL_END, VERTICAL_END, PAN_END],
-    ['0%', '-25%', '-25%', '-50%']
+    ['0%', '-25%', '-25%', '0%']
   );
   const featuresX = useTransform(
     scrollYProgress,
@@ -179,37 +175,26 @@ const LandingPage = () => {
             </div>
 
             <div className="absolute inset-y-0 left-1/2 w-1/2">
-              <div className="pointer-events-auto absolute inset-y-0 right-0 w-full lg:w-[55%] flex flex-col justify-center px-6 md:px-12 lg:px-20 bg-white/70 backdrop-blur-2xl border-l border-black/5 shadow-[-20px_0_40px_rgba(0,0,0,0.03)] overflow-y-auto">
-                <div className="max-w-2xl mx-auto w-full py-12">
-                  <span className="px-3 py-1 rounded-full bg-white/90 border border-black/5 text-xs font-medium text-gray-500 uppercase tracking-wider mb-4 inline-block">
-                    Other details
-                  </span>
-                  <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-6 leading-tight">
-                    The small things that add up.
-                  </h2>
-                  <p className="text-gray-500 text-lg leading-relaxed mb-8">
-                    Beyond tracking and budgets, a few practical details make Finance Fusion easy to start with and easy to trust.
-                  </p>
+              <div className="absolute inset-y-0 right-0 w-full lg:w-1/2 flex flex-col justify-center px-6 md:px-10 lg:pl-10 lg:pr-16">
+                <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tighter leading-[0.95] mb-6">
+                  Other details<span className="text-accent">.</span>
+                </h2>
+                <p className="text-lg text-gray-500 leading-relaxed mb-8 max-w-md">
+                  A few practical things that make Finance Fusion easy to start with and easy to trust.
+                </p>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                    {OTHER_DETAILS.map((item) => (
-                      <div
-                        key={item.title}
-                        className="p-5 rounded-3xl bg-white/60 border border-black/5 shadow-sm hover:bg-white transition-colors"
-                      >
-                        <div className="w-11 h-11 bg-accent/10 text-accent rounded-2xl flex items-center justify-center text-xl mb-3">
-                          {item.icon}
-                        </div>
-                        <h3 className="text-lg font-bold mb-1 tracking-tight">{item.title}</h3>
-                        <p className="text-gray-500 text-sm leading-relaxed">{item.text}</p>
-                      </div>
-                    ))}
-                  </div>
+                <ul className="space-y-5 mb-10 max-w-md">
+                  {OTHER_DETAILS.map((item) => (
+                    <li key={item.title} className="flex gap-3">
+                      <span className="h-1.5 w-1.5 rounded-full bg-accent mt-2.5 shrink-0" />
+                      <span className="text-gray-500 leading-relaxed">
+                        <strong className="text-ink font-medium">{item.title}</strong> — {item.text}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
 
-                  <p className="text-xs text-gray-400 font-medium mb-6">
-                    Built with React, FastAPI and Firebase.
-                  </p>
-
+                <div className="pointer-events-auto">
                   <MagneticButton
                     onClick={() => navigate('/signup')}
                     className="px-8 py-4 bg-ink text-white rounded-full font-medium text-lg shadow-xl gap-2"

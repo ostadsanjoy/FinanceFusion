@@ -19,7 +19,7 @@ const PIGGY_SCALE = PIGGY_SCALE_END;
 const GROUP_POS_START = new THREE.Vector3(4.5, -3.8, 0);
 const GROUP_POS_END = new THREE.Vector3(3, -3.5, 0);
 const GROUP_POS_EXIT = new THREE.Vector3(GROUP_POS_END.x, -0.6, GROUP_POS_END.z);
-const GROUP_POS_FLIP = new THREE.Vector3(GROUP_POS_END.x, -3.2, GROUP_POS_END.z);
+const GROUP_POS_FLIP = new THREE.Vector3(-GROUP_POS_START.x, GROUP_POS_START.y - 0.3, 0);
 
 const BELLY = {
   floorY: RAW.height * PIGGY_SCALE * 0.14,
@@ -38,14 +38,15 @@ const FILL_END = 0.75;
 const SIDE_ANGLE = -1.35;
 const FRONT_ANGLE = 0.05;
 
-const FLIP_SPIN_START = 0.1;
-const FLIP_SPIN_SPAN = 0.6;
-const FLIP_MOVE_SPAN = 0.6;
-const DROP_COIN_APPEAR_START = 0.3;
+const FLIP_ANGLE = -SIDE_ANGLE;
+const FLIP_GROUP_SCALE = PIGGY_SCALE_START / PIGGY_SCALE_END;
+const FLIP_MOVE_SPAN = 0.8;
+const DROP_COIN_APPEAR_START = 0.55;
 const DROP_COIN_APPEAR_SPAN = 0.15;
-const DROP_COIN_FALL_START = 0.65;
-const DROP_COIN_FALL_SPAN = 0.3;
-const DROP_COIN_HOVER = 1.5;
+const DROP_COIN_FALL_START = 0.8;
+const DROP_COIN_FALL_SPAN = 0.2;
+const DROP_COIN_HOVER = 0.9;
+const DROP_COIN_HOVER_SCALE = 0.7;
 const DROP_COIN_REST = new THREE.Vector3(0.15, BELLY.halfFillY + COIN_DIAMETER * 0.2, BELLY.slotZ * 0.3);
 
 const clamp01 = (v) => Math.min(Math.max(v, 0), 1);
@@ -112,8 +113,9 @@ function PiggyBank({ gltf, progress, flip, turnRef }) {
     const breathe = 1 + Math.sin(state.clock.getElapsedTime() * 0.6) * 0.006;
     const scale = THREE.MathUtils.lerp(PIGGY_SCALE_START, PIGGY_SCALE_END, t) * breathe;
     wrapRef.current.scale.setScalar(scale);
-    const spin = easeInOut(clamp01((flip.current - FLIP_SPIN_START) / FLIP_SPIN_SPAN));
-    turnRef.current = THREE.MathUtils.lerp(SIDE_ANGLE, FRONT_ANGLE, t) + spin * Math.PI;
+    const mirror = easeInOut(clamp01(flip.current / FLIP_MOVE_SPAN));
+    const base = THREE.MathUtils.lerp(SIDE_ANGLE, FRONT_ANGLE, t);
+    turnRef.current = THREE.MathUtils.lerp(base, FLIP_ANGLE, mirror);
   });
 
   return (
@@ -210,8 +212,9 @@ function DropCoin({ assets, flip }) {
     mesh.visible = appear > 0.001;
     if (!mesh.visible) return;
 
+    const parentYaw = mesh.parent ? mesh.parent.rotation.y : 0;
     mesh.rotation.order = 'YXZ';
-    mesh.scale.setScalar(appear);
+    mesh.scale.setScalar(appear * THREE.MathUtils.lerp(DROP_COIN_HOVER_SCALE, 1, easeInOut(clamp01(d * 2))));
 
     if (d < 0.5) {
       const local = easeInOut(d / 0.5);
@@ -222,12 +225,12 @@ function DropCoin({ assets, flip }) {
         SLOT_POS.z
       );
       mesh.rotation.x = THREE.MathUtils.lerp(Math.PI / 2, 0, local);
-      mesh.rotation.y = time * 1.4 + local * Math.PI * 4;
+      mesh.rotation.y = Math.sin(time * 1.2) * 0.5 * (1 - local) - parentYaw * (1 - local) + local * Math.PI * 4;
     } else {
       const local = easeOutCubic((d - 0.5) / 0.5);
       mesh.position.lerpVectors(SLOT_POS, DROP_COIN_REST, local);
       mesh.rotation.x = 0;
-      mesh.rotation.y = time * 1.4 + Math.PI * 4 + local * Math.PI;
+      mesh.rotation.y = Math.PI * 4 + local * Math.PI;
     }
   });
 
@@ -265,9 +268,10 @@ export default function CoinScene({ interaction, progress, flip }) {
 
     const p = progress.current;
     const f = flip.current;
+    const mirror = easeInOut(clamp01(f / FLIP_MOVE_SPAN));
+    group.current.scale.setScalar(THREE.MathUtils.lerp(1, FLIP_GROUP_SCALE, mirror));
     if (f > 0) {
-      const t = easeInOut(clamp01(f / FLIP_MOVE_SPAN));
-      group.current.position.lerpVectors(GROUP_POS_EXIT, GROUP_POS_FLIP, t);
+      group.current.position.lerpVectors(GROUP_POS_EXIT, GROUP_POS_FLIP, mirror);
     } else if (p <= TURN_END) {
       const t = easeInOut(clamp01(p / TURN_END));
       group.current.position.lerpVectors(GROUP_POS_START, GROUP_POS_END, t);
