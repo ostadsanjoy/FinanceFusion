@@ -2,7 +2,7 @@ import React, { Suspense, useCallback, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import CoinScene from './CoinScene';
 
-export default function HeroCanvas({ className = '', progress }) {
+export default function HeroCanvas({ className = '', progress, flip }) {
   const interaction = useRef({
     dragging: false,
     rotX: 0,
@@ -55,7 +55,7 @@ export default function HeroCanvas({ className = '', progress }) {
         gl={{ antialias: true, alpha: true }}
       >
         <Suspense fallback={null}>
-          <CoinScene interaction={interaction.current} progress={progress} />
+          <CoinScene interaction={interaction.current} progress={progress} flip={flip} />
         </Suspense>
       </Canvas>
     </div>

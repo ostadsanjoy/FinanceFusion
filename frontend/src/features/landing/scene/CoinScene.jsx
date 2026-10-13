@@ -19,6 +19,7 @@ const PIGGY_SCALE = PIGGY_SCALE_END;
 const GROUP_POS_START = new THREE.Vector3(4.5, -3.8, 0);
 const GROUP_POS_END = new THREE.Vector3(3, -3.5, 0);
 const GROUP_POS_EXIT = new THREE.Vector3(GROUP_POS_END.x, -0.6, GROUP_POS_END.z);
+const GROUP_POS_FLIP = new THREE.Vector3(GROUP_POS_END.x, -3.2, GROUP_POS_END.z);
 
 const BELLY = {
   floorY: RAW.height * PIGGY_SCALE * 0.14,
@@ -37,6 +38,17 @@ const FILL_END = 0.75;
 const SIDE_ANGLE = -1.35;
 const FRONT_ANGLE = 0.05;
 
+const FLIP_SPIN_START = 0.1;
+const FLIP_SPIN_SPAN = 0.6;
+const FLIP_MOVE_SPAN = 0.6;
+const DROP_COIN_APPEAR_START = 0.3;
+const DROP_COIN_APPEAR_SPAN = 0.15;
+const DROP_COIN_FALL_START = 0.65;
+const DROP_COIN_FALL_SPAN = 0.3;
+const DROP_COIN_HOVER = 1.5;
+const DROP_COIN_REST = new THREE.Vector3(0.15, BELLY.halfFillY + COIN_DIAMETER * 0.2, BELLY.slotZ * 0.3);
+
+const clamp01 = (v) => Math.min(Math.max(v, 0), 1);
 const easeInOut = (t) => t * t * (3 - 2 * t);
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
@@ -59,29 +71,7 @@ function pilePosition(i) {
   );
 }
 
-function PiggyBank({ gltf, progress, turnRef }) {
-  const wrapRef = useRef();
-
-  useFrame((state) => {
-    if (!wrapRef.current) return;
-    const t = easeInOut(Math.min(Math.max(progress.current / TURN_END, 0), 1));
-    const breathe = 1 + Math.sin(state.clock.getElapsedTime() * 0.6) * 0.006;
-    const scale = THREE.MathUtils.lerp(PIGGY_SCALE_START, PIGGY_SCALE_END, t) * breathe;
-    wrapRef.current.scale.setScalar(scale);
-    turnRef.current = THREE.MathUtils.lerp(SIDE_ANGLE, FRONT_ANGLE, t);
-  });
-
-  return (
-    <group ref={wrapRef} scale={PIGGY_SCALE_START}>
-      <primitive object={gltf.scene} />
-    </group>
-  );
-}
-
-function CoinField({ gltf, progress }) {
-  const meshRef = useRef();
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-
+function useCoinAssets(gltf) {
   const geometry = useMemo(() => {
     let geo = null;
     gltf.scene.traverse((child) => {
@@ -110,6 +100,33 @@ function CoinField({ gltf, progress }) {
     return mat;
   }, [gltf]);
 
+  return { geometry, material };
+}
+
+function PiggyBank({ gltf, progress, flip, turnRef }) {
+  const wrapRef = useRef();
+
+  useFrame((state) => {
+    if (!wrapRef.current) return;
+    const t = easeInOut(clamp01(progress.current / TURN_END));
+    const breathe = 1 + Math.sin(state.clock.getElapsedTime() * 0.6) * 0.006;
+    const scale = THREE.MathUtils.lerp(PIGGY_SCALE_START, PIGGY_SCALE_END, t) * breathe;
+    wrapRef.current.scale.setScalar(scale);
+    const spin = easeInOut(clamp01((flip.current - FLIP_SPIN_START) / FLIP_SPIN_SPAN));
+    turnRef.current = THREE.MathUtils.lerp(SIDE_ANGLE, FRONT_ANGLE, t) + spin * Math.PI;
+  });
+
+  return (
+    <group ref={wrapRef} scale={PIGGY_SCALE_START}>
+      <primitive object={gltf.scene} />
+    </group>
+  );
+}
+
+function CoinField({ assets, progress }) {
+  const meshRef = useRef();
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+
   const starts = useMemo(
     () =>
       Array.from({ length: NUM_COINS }).map((_, i) => {
@@ -137,12 +154,11 @@ function CoinField({ gltf, progress }) {
   useFrame(() => {
     if (!meshRef.current) return;
     const raw = progress.current;
-    const p = Math.min(Math.max((raw - TURN_END) / (FILL_END - TURN_END), 0), 1);
+    const p = clamp01((raw - TURN_END) / (FILL_END - TURN_END));
 
     for (let i = 0; i < NUM_COINS; i++) {
       const { start, end } = windows[i];
-      let t = (p - start) / (end - start);
-      t = Math.min(Math.max(t, 0), 1);
+      const t = clamp01((p - start) / (end - start));
 
       if (t < 0.5) {
         const local = easeInOut(t / 0.5);
@@ -171,15 +187,67 @@ function CoinField({ gltf, progress }) {
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[geometry, material, NUM_COINS]} frustumCulled={false} />
+    <instancedMesh
+      ref={meshRef}
+      args={[assets.geometry, assets.material, NUM_COINS]}
+      frustumCulled={false}
+    />
   );
 }
 
-export default function CoinScene({ interaction, progress }) {
+function DropCoin({ assets, flip }) {
+  const meshRef = useRef();
+
+  useFrame((state) => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+
+    const f = flip.current;
+    const appear = easeOutCubic(clamp01((f - DROP_COIN_APPEAR_START) / DROP_COIN_APPEAR_SPAN));
+    const d = clamp01((f - DROP_COIN_FALL_START) / DROP_COIN_FALL_SPAN);
+    const time = state.clock.getElapsedTime();
+
+    mesh.visible = appear > 0.001;
+    if (!mesh.visible) return;
+
+    mesh.rotation.order = 'YXZ';
+    mesh.scale.setScalar(appear);
+
+    if (d < 0.5) {
+      const local = easeInOut(d / 0.5);
+      const bob = Math.sin(time * 2.2) * 0.06 * (1 - local);
+      mesh.position.set(
+        SLOT_POS.x,
+        THREE.MathUtils.lerp(SLOT_POS.y + DROP_COIN_HOVER, SLOT_POS.y, local) + bob,
+        SLOT_POS.z
+      );
+      mesh.rotation.x = THREE.MathUtils.lerp(Math.PI / 2, 0, local);
+      mesh.rotation.y = time * 1.4 + local * Math.PI * 4;
+    } else {
+      const local = easeOutCubic((d - 0.5) / 0.5);
+      mesh.position.lerpVectors(SLOT_POS, DROP_COIN_REST, local);
+      mesh.rotation.x = 0;
+      mesh.rotation.y = time * 1.4 + Math.PI * 4 + local * Math.PI;
+    }
+  });
+
+  return (
+    <mesh
+      ref={meshRef}
+      geometry={assets.geometry}
+      material={assets.material}
+      visible={false}
+      frustumCulled={false}
+    />
+  );
+}
+
+export default function CoinScene({ interaction, progress, flip }) {
   const group = useRef();
   const turnRef = useRef(FRONT_ANGLE);
   const coinGltf = useGLTF(COIN_URL);
   const piggyGltf = useGLTF(PIGGY_URL);
+  const coinAssets = useCoinAssets(coinGltf);
 
   useFrame((state, delta) => {
     if (!group.current || !interaction) return;
@@ -196,13 +264,17 @@ export default function CoinScene({ interaction, progress }) {
     group.current.rotation.x = interaction.rotX;
 
     const p = progress.current;
-    if (p <= TURN_END) {
-      const t = easeInOut(Math.min(Math.max(p / TURN_END, 0), 1));
+    const f = flip.current;
+    if (f > 0) {
+      const t = easeInOut(clamp01(f / FLIP_MOVE_SPAN));
+      group.current.position.lerpVectors(GROUP_POS_EXIT, GROUP_POS_FLIP, t);
+    } else if (p <= TURN_END) {
+      const t = easeInOut(clamp01(p / TURN_END));
       group.current.position.lerpVectors(GROUP_POS_START, GROUP_POS_END, t);
     } else if (p <= FILL_END) {
       group.current.position.copy(GROUP_POS_END);
     } else {
-      const t = easeInOut(Math.min(Math.max((p - FILL_END) / (1 - FILL_END), 0), 1));
+      const t = easeInOut(clamp01((p - FILL_END) / (1 - FILL_END)));
       group.current.position.lerpVectors(GROUP_POS_END, GROUP_POS_EXIT, t);
     }
   });
@@ -215,8 +287,9 @@ export default function CoinScene({ interaction, progress }) {
       <directionalLight position={[-4, -1, -3]} intensity={0.3} color="#8fce9c" />
       <pointLight position={[0, 1, 3]} intensity={0.4} color="#ffe3a3" />
 
-      <PiggyBank gltf={piggyGltf} progress={progress} turnRef={turnRef} />
-      <CoinField gltf={coinGltf} progress={progress} />
+      <PiggyBank gltf={piggyGltf} progress={progress} flip={flip} turnRef={turnRef} />
+      <CoinField assets={coinAssets} progress={progress} />
+      <DropCoin assets={coinAssets} flip={flip} />
 
       <Sparkles
         count={20}
