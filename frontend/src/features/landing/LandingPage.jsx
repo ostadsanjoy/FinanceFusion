@@ -12,25 +12,6 @@ const HEADLINE_PHRASES = ['Finance Fusion.', 'Log expenses.', 'Set budgets.', 'W
 const VERTICAL_END = 2 / 3;
 const PAN_END = VERTICAL_END + (1 - VERTICAL_END) * 0.8;
 
-const OTHER_DETAILS = [
-  {
-    title: 'Import your statements',
-    text: 'upload an XLSX or PDF bank statement and your transactions are read in for you.',
-  },
-  {
-    title: 'Automatic categories',
-    text: 'essentials, grocery, utilities, rent and more are picked from common keywords.',
-  },
-  {
-    title: 'Secure sign-in',
-    text: 'email or Google through Firebase Authentication, with password reset by email.',
-  },
-  {
-    title: 'Export anytime',
-    text: 'download your transaction history whenever you need it.',
-  },
-];
-
 const renderPhrase = (text) =>
   text.endsWith('.') ? (
     <>
@@ -88,17 +69,7 @@ const LandingPage = () => {
     flipRef.current = Math.min(Math.max((v - VERTICAL_END) / (1 - VERTICAL_END), 0), 1);
   });
 
-  const pigX = useTransform(
-    scrollYProgress,
-    [0.4 * VERTICAL_END, 0.8 * VERTICAL_END, VERTICAL_END, PAN_END],
-    ['0%', '-25%', '-25%', '0%']
-  );
-  const featuresX = useTransform(
-    scrollYProgress,
-    [0.4 * VERTICAL_END, 0.8 * VERTICAL_END],
-    ['100%', '0%']
-  );
-  const trackX = useTransform(scrollYProgress, [VERTICAL_END, PAN_END], ['0%', '-50%']);
+  const detailsX = useTransform(scrollYProgress, [VERTICAL_END, PAN_END], ['100%', '0%']);
 
   return (
     <div className="min-h-screen bg-canvas font-sans text-ink selection:bg-accent selection:text-white">
@@ -106,102 +77,63 @@ const LandingPage = () => {
 
         <div className="sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center">
 
-          <motion.div style={{ x: pigX }} className="absolute inset-0 w-full h-full">
+          <div className="absolute inset-0 w-full h-full">
             <Suspense fallback={<div className="absolute inset-0" />}>
               <HeroCanvas className="absolute inset-0" progress={progressRef} flip={flipRef} />
             </Suspense>
             <div className="absolute bottom-0 inset-x-0 h-28 md:h-40 bg-gradient-to-t from-canvas to-transparent pointer-events-none" />
-          </motion.div>
+          </div>
 
           <motion.div
-            style={{ x: trackX }}
-            className="absolute inset-y-0 left-0 w-[200%] z-30 pointer-events-none"
+            style={{ x: detailsX }}
+            className="absolute inset-y-0 right-0 w-full lg:w-1/2 z-30 flex flex-col justify-center px-6 md:px-10 lg:pl-10 lg:pr-16 overflow-y-auto"
           >
-            <div className="absolute inset-y-0 left-0 w-1/2">
-              <motion.div
-                style={{ x: featuresX }}
-                className="pointer-events-auto absolute inset-y-0 right-0 w-full lg:w-[55%] flex flex-col justify-center px-6 md:px-12 lg:px-20 bg-white/70 backdrop-blur-2xl border-l border-black/5 shadow-[-20px_0_40px_rgba(0,0,0,0.03)] overflow-y-auto"
-              >
-                <div className="max-w-2xl mx-auto w-full py-12">
-                  <span className="px-3 py-1 rounded-full bg-white/90 border border-black/5 text-xs font-medium text-gray-500 uppercase tracking-wider mb-4 inline-block">
-                    Everything you need
-                  </span>
-                  <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-6 leading-tight">
-                    Features designed for clarity and control.
-                  </h2>
-                  <p className="text-gray-500 text-lg leading-relaxed mb-10">
-                    Managing money shouldn't feel like a second job. Finance Fusion gives you the exact tools you need to stay on top of your wealth without the overwhelming clutter.
-                  </p>
+            <div className="max-w-xl w-full py-12">
+              <span className="px-3 py-1 rounded-full bg-white/90 border border-black/5 text-xs font-medium text-gray-500 uppercase tracking-wider mb-4 inline-block">
+                Everything you need
+              </span>
+              <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-6 leading-tight">
+                Features designed for clarity and control.
+              </h2>
+              <p className="text-gray-500 text-lg leading-relaxed mb-10">
+                Managing money shouldn't feel like a second job. Finance Fusion gives you the exact tools you need to stay on top of your wealth without the overwhelming clutter.
+              </p>
 
-                  <div className="flex flex-col gap-5">
-                    <div className="p-6 rounded-3xl bg-white/60 border border-black/5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-5 hover:bg-white transition-colors">
-                      <div className="w-14 h-14 shrink-0 bg-accent/10 text-accent rounded-2xl flex items-center justify-center text-2xl">
-                        📊
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-bold mb-1 tracking-tight">Smart Expense Tracking</h3>
-                        <p className="text-gray-500 text-sm leading-relaxed">
-                          Log transactions in seconds. Our categorization automatically organizes your spending so you know exactly where your money goes.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="p-6 rounded-3xl bg-white/60 border border-black/5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-5 hover:bg-white transition-colors">
-                      <div className="w-14 h-14 shrink-0 bg-accent/10 text-accent rounded-2xl flex items-center justify-center text-2xl">
-                        🎯
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-bold mb-1 tracking-tight">Dynamic Budgets</h3>
-                        <p className="text-gray-500 text-sm leading-relaxed">
-                          Set flexible limits that adapt to your lifestyle. Get visual alerts before you overspend, keeping you safely within your means.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="p-6 rounded-3xl bg-white/60 border border-black/5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-5 hover:bg-white transition-colors">
-                      <div className="w-14 h-14 shrink-0 bg-accent/10 text-accent rounded-2xl flex items-center justify-center text-2xl">
-                        🌱
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-bold mb-1 tracking-tight">Wealth Analytics</h3>
-                        <p className="text-gray-500 text-sm leading-relaxed">
-                          Turn raw data into actionable insights. Beautiful charts help you spot trends, cut unnecessary costs, and watch your savings grow.
-                        </p>
-                      </div>
-                    </div>
+              <div className="flex flex-col gap-5">
+                <div className="p-6 rounded-3xl bg-white/60 border border-black/5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-5 hover:bg-white transition-colors">
+                  <div className="w-14 h-14 shrink-0 bg-accent/10 text-accent rounded-2xl flex items-center justify-center text-2xl">
+                    📊
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold mb-1 tracking-tight">Smart Expense Tracking</h3>
+                    <p className="text-gray-500 text-sm leading-relaxed">
+                      Log transactions in seconds. Our categorization automatically organizes your spending so you know exactly where your money goes.
+                    </p>
                   </div>
                 </div>
-              </motion.div>
-            </div>
 
-            <div className="absolute inset-y-0 left-1/2 w-1/2">
-              <div className="absolute inset-y-0 right-0 w-full lg:w-1/2 flex flex-col justify-center px-6 md:px-10 lg:pl-10 lg:pr-16">
-                <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tighter leading-[0.95] mb-6">
-                  Other details<span className="text-accent">.</span>
-                </h2>
-                <p className="text-lg text-gray-500 leading-relaxed mb-8 max-w-md">
-                  A few practical things that make Finance Fusion easy to start with and easy to trust.
-                </p>
+                <div className="p-6 rounded-3xl bg-white/60 border border-black/5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-5 hover:bg-white transition-colors">
+                  <div className="w-14 h-14 shrink-0 bg-accent/10 text-accent rounded-2xl flex items-center justify-center text-2xl">
+                    🎯
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold mb-1 tracking-tight">Dynamic Budgets</h3>
+                    <p className="text-gray-500 text-sm leading-relaxed">
+                      Set flexible limits that adapt to your lifestyle. Get visual alerts before you overspend, keeping you safely within your means.
+                    </p>
+                  </div>
+                </div>
 
-                <ul className="space-y-5 mb-10 max-w-md">
-                  {OTHER_DETAILS.map((item) => (
-                    <li key={item.title} className="flex gap-3">
-                      <span className="h-1.5 w-1.5 rounded-full bg-accent mt-2.5 shrink-0" />
-                      <span className="text-gray-500 leading-relaxed">
-                        <strong className="text-ink font-medium">{item.title}</strong> — {item.text}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="pointer-events-auto">
-                  <MagneticButton
-                    onClick={() => navigate('/signup')}
-                    className="px-8 py-4 bg-ink text-white rounded-full font-medium text-lg shadow-xl gap-2"
-                  >
-                    Get Started
-                    <ArrowRight className="w-5 h-5" />
-                  </MagneticButton>
+                <div className="p-6 rounded-3xl bg-white/60 border border-black/5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-5 hover:bg-white transition-colors">
+                  <div className="w-14 h-14 shrink-0 bg-accent/10 text-accent rounded-2xl flex items-center justify-center text-2xl">
+                    🌱
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold mb-1 tracking-tight">Wealth Analytics</h3>
+                    <p className="text-gray-500 text-sm leading-relaxed">
+                      Turn raw data into actionable insights. Beautiful charts help you spot trends, cut unnecessary costs, and watch your savings grow.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
