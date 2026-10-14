@@ -12,11 +12,21 @@ import {
 } from 'framer-motion';
 import { ArrowRight, ChevronDown } from 'lucide-react';
 import MagneticButton from '../../components/ui/MagneticButton';
+import FeatureFan from './FeatureFan';
 
 const HeroCanvas = lazy(() => import('./scene/HeroCanvas'));
 const ConfettiPop = lazy(() => import('../../components/ui/ConfettiPop'));
 
 const HEADLINE_PHRASES = ['Finance Fusion.', 'Log expenses.', 'Set budgets.', 'Watch money grow.'];
+
+const ALSO_INCLUDED = [
+  'Import XLSX & PDF statements',
+  'Google sign-in',
+  'Category budgets',
+  'Pie & bar charts',
+  'Export your history',
+  'Password reset by email',
+];
 
 const SWOOP_TRIGGER = 0.6;
 const SWOOP_FORWARD_SECONDS = 2.4;
@@ -147,55 +157,54 @@ const LandingPage = () => {
 
           <motion.div
             style={{ x: detailsX }}
-            className="absolute inset-y-0 right-0 w-full lg:w-1/2 z-30 flex flex-col justify-center px-6 md:px-10 lg:pl-10 lg:pr-16 overflow-y-auto"
+            className="absolute inset-y-0 right-0 w-full lg:w-1/2 z-30 flex flex-col px-6 md:px-10 lg:pl-10 lg:pr-16 overflow-y-auto"
           >
-            <div className="max-w-xl w-full py-12">
+            <div className="max-w-xl w-full py-8 my-auto">
               <span className="px-3 py-1 rounded-full bg-white/90 border border-black/5 text-xs font-medium text-gray-500 uppercase tracking-wider mb-4 inline-block">
                 Everything you need
               </span>
-              <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-6 leading-tight">
+              <h2 className="text-3xl md:text-4xl lg:text-5xl [@media(max-height:800px)]:lg:text-4xl font-bold tracking-tight mb-4 leading-tight">
                 Features designed for clarity and control.
               </h2>
-              <p className="text-gray-500 text-lg leading-relaxed mb-10">
+              <p className="text-gray-500 text-base md:text-lg leading-relaxed mb-2 [@media(max-height:800px)]:mb-4">
                 Managing money shouldn't feel like a second job. Finance Fusion gives you the exact tools you need to stay on top of your wealth without the overwhelming clutter.
               </p>
+              <p className="text-gray-500 text-base leading-relaxed mb-4 [@media(max-height:800px)]:hidden">
+                Log it, budget it, and see where it all goes.
+              </p>
 
-              <div className="flex flex-col gap-5">
-                <div className="p-6 rounded-3xl bg-white/60 border border-black/5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-5 hover:bg-white transition-colors">
-                  <div className="w-14 h-14 shrink-0 bg-accent/10 text-accent rounded-2xl flex items-center justify-center text-2xl">
-                    📊
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold mb-1 tracking-tight">Smart Expense Tracking</h3>
-                    <p className="text-gray-500 text-sm leading-relaxed">
-                      Log transactions in seconds. Our categorization automatically organizes your spending so you know exactly where your money goes.
-                    </p>
-                  </div>
-                </div>
+              <FeatureFan />
 
-                <div className="p-6 rounded-3xl bg-white/60 border border-black/5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-5 hover:bg-white transition-colors">
-                  <div className="w-14 h-14 shrink-0 bg-accent/10 text-accent rounded-2xl flex items-center justify-center text-2xl">
-                    🎯
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold mb-1 tracking-tight">Dynamic Budgets</h3>
-                    <p className="text-gray-500 text-sm leading-relaxed">
-                      Set flexible limits that adapt to your lifestyle. Get visual alerts before you overspend, keeping you safely within your means.
-                    </p>
-                  </div>
+              <div className="mt-6">
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-3">
+                  Also included
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {ALSO_INCLUDED.map((item) => (
+                    <span
+                      key={item}
+                      className="px-3 py-1.5 rounded-full bg-white/70 border border-black/5 text-xs font-medium text-gray-600"
+                    >
+                      {item}
+                    </span>
+                  ))}
                 </div>
+              </div>
 
-                <div className="p-6 rounded-3xl bg-white/60 border border-black/5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-5 hover:bg-white transition-colors">
-                  <div className="w-14 h-14 shrink-0 bg-accent/10 text-accent rounded-2xl flex items-center justify-center text-2xl">
-                    🌱
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold mb-1 tracking-tight">Wealth Analytics</h3>
-                    <p className="text-gray-500 text-sm leading-relaxed">
-                      Turn raw data into actionable insights. Beautiful charts help you spot trends, cut unnecessary costs, and watch your savings grow.
-                    </p>
-                  </div>
-                </div>
+              <div className="mt-6 flex items-center gap-4">
+                <MagneticButton
+                  onClick={() => navigate('/signup')}
+                  className="px-7 py-3.5 bg-ink text-white rounded-full font-medium text-base shadow-xl gap-2"
+                >
+                  Get Started
+                  <ArrowRight className="w-4 h-4" />
+                </MagneticButton>
+                <button
+                  onClick={() => navigate('/login')}
+                  className="text-sm font-medium text-gray-500 hover:text-accent transition-colors"
+                >
+                  I already have an account
+                </button>
               </div>
             </div>
           </motion.div>
