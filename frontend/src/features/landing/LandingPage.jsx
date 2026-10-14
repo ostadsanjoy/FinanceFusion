@@ -62,6 +62,8 @@ const LandingPage = () => {
   const triggerRef = useRef(0);
   const swoopTargetRef = useRef(0);
   const swoopAnimRef = useRef(null);
+  const panelRef = useRef(null);
+  const overflowRef = useRef(0);
   const [wrapHeight, setWrapHeight] = useState('450vh');
   const [headlineStep, setHeadlineStep] = useState(0);
   const [burstKey, setBurstKey] = useState(0);
@@ -87,10 +89,13 @@ const LandingPage = () => {
 
   const { scrollY } = useScroll();
   const swoop = useMotionValue(0);
+  const panelY = useMotionValue(0);
 
   const syncToScroll = useCallback(
     (y) => {
       const trigger = triggerRef.current;
+      const vhNow = window.innerHeight;
+      panelY.set(-Math.min(Math.max(y - trigger - vhNow * 0.3, 0), overflowRef.current));
       progressRef.current = trigger > 0 ? Math.min(Math.max(y / trigger, 0), 1) : 0;
       const target = trigger > 0 && y >= trigger ? 1 : 0;
       if (target === swoopTargetRef.current) return;
@@ -101,7 +106,7 @@ const LandingPage = () => {
         ease: 'linear',
       });
     },
-    [swoop]
+    [swoop, panelY]
   );
 
   const measure = useCallback(() => {
@@ -112,7 +117,9 @@ const LandingPage = () => {
     const lastBottom = lastRect.bottom - wrapRect.top;
     const trigger = Math.max(lastBottom - SWOOP_TRIGGER * vh, vh * 0.5);
     triggerRef.current = trigger;
-    setWrapHeight(`${Math.round(trigger + vh * 1.8)}px`);
+    const content = panelRef.current ? panelRef.current.offsetHeight : 0;
+    overflowRef.current = Math.max(0, content - vh);
+    setWrapHeight(`${Math.round(trigger + vh * 1.8 + overflowRef.current)}px`);
     syncToScroll(window.scrollY);
   }, [syncToScroll]);
 
@@ -157,9 +164,9 @@ const LandingPage = () => {
 
           <motion.div
             style={{ x: detailsX }}
-            className="absolute inset-y-0 right-0 w-full lg:w-1/2 z-30 flex flex-col px-6 md:px-10 lg:pl-10 lg:pr-16 overflow-y-auto"
+            className="absolute inset-y-0 right-0 w-full lg:w-1/2 z-30 flex flex-col px-6 md:px-10 lg:pl-10 lg:pr-16 overflow-hidden"
           >
-            <div className="max-w-xl w-full py-8 my-auto">
+            <motion.div ref={panelRef} style={{ y: panelY }} className="max-w-xl w-full py-8 my-auto">
               <span className="px-3 py-1 rounded-full bg-white/90 border border-black/5 text-xs font-medium text-gray-500 uppercase tracking-wider mb-4 inline-block">
                 Everything you need
               </span>
@@ -206,7 +213,7 @@ const LandingPage = () => {
                   I already have an account
                 </button>
               </div>
-            </div>
+            </motion.div>
           </motion.div>
         </div>
 
