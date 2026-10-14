@@ -28,7 +28,7 @@ const ALSO_INCLUDED = [
   'Password reset by email',
 ];
 
-const SWOOP_TRIGGER = 0.6;
+const SWOOP_TRIGGER = 0.78;
 const SWOOP_FORWARD_SECONDS = 2.4;
 const SWOOP_BACK_SECONDS = 1.6;
 const SWOOP_EASE = cubicBezier(0.65, 0, 0.35, 1);
@@ -139,8 +139,8 @@ const LandingPage = () => {
     if (swoopAnimRef.current) swoopAnimRef.current.stop();
   }, []);
 
-  const detailsX = useTransform(swoop, [0.1, 0.8], ['100%', '0%'], { ease: SWOOP_EASE });
-  const leftOpacity = useTransform(swoop, [0, 0.3], [1, 0]);
+  const detailsX = useTransform(swoop, [0.4, 1], ['-115%', '0%'], { ease: SWOOP_EASE });
+  const leftX = useTransform(swoop, [0, 0.4], ['0%', '-115%'], { ease: SWOOP_EASE });
 
   return (
     <div className="min-h-screen bg-canvas font-sans text-ink selection:bg-accent selection:text-white">
@@ -210,7 +210,7 @@ const LandingPage = () => {
           </motion.div>
         </div>
 
-        <motion.div style={{ opacity: leftOpacity }} className="absolute inset-x-0 top-0 z-10">
+        <motion.div style={{ x: leftX }} className="absolute inset-x-0 top-0 z-10">
           <motion.nav
             variants={fadeUp}
             initial="hidden"

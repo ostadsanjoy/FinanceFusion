@@ -39,11 +39,13 @@ const FRONT_ANGLE = 0.05;
 
 const FLIP_ANGLE = -SIDE_ANGLE;
 const FLIP_GROUP_SCALE = PIGGY_SCALE_START / PIGGY_SCALE_END;
-const FLIP_MOVE_SPAN = 0.7;
-const DROP_COIN_APPEAR_START = 0.45;
-const DROP_COIN_APPEAR_SPAN = 0.15;
-const DROP_COIN_FALL_START = 0.75;
-const DROP_COIN_FALL_SPAN = 0.25;
+const SWAP_AT = 0.35;
+const ENTER_END = 0.85;
+const OFFSCREEN_X = 12;
+const DROP_COIN_APPEAR_START = 0.7;
+const DROP_COIN_APPEAR_SPAN = 0.12;
+const DROP_COIN_FALL_START = 0.85;
+const DROP_COIN_FALL_SPAN = 0.15;
 const DROP_COIN_HOVER = 0.9;
 const DROP_COIN_HOVER_SCALE = 0.7;
 const DROP_COIN_REST = new THREE.Vector3(0.15, BELLY.halfFillY + COIN_DIAMETER * 0.2, BELLY.slotZ * 0.3);
@@ -112,7 +114,7 @@ function PiggyBank({ gltf, progress, flip, turnRef }) {
     const breathe = 1 + Math.sin(state.clock.getElapsedTime() * 0.6) * 0.006;
     const scale = THREE.MathUtils.lerp(PIGGY_SCALE_START, PIGGY_SCALE_END, t) * breathe;
     wrapRef.current.scale.setScalar(scale);
-    const mirror = easeInOut(clamp01(flip.current / FLIP_MOVE_SPAN));
+    const mirror = flip.current >= SWAP_AT ? 1 : 0;
     const base = THREE.MathUtils.lerp(SIDE_ANGLE, FRONT_ANGLE, t);
     turnRef.current = THREE.MathUtils.lerp(base, FLIP_ANGLE, mirror);
   });
@@ -267,10 +269,21 @@ export default function CoinScene({ interaction, progress, flip }) {
 
     const p = progress.current;
     const f = flip.current;
-    const mirror = easeInOut(clamp01(f / FLIP_MOVE_SPAN));
-    group.current.scale.setScalar(THREE.MathUtils.lerp(1, FLIP_GROUP_SCALE, mirror));
-    if (f > 0) {
-      group.current.position.lerpVectors(GROUP_POS_END, GROUP_POS_FLIP, mirror);
+    group.current.scale.setScalar(f >= SWAP_AT ? FLIP_GROUP_SCALE : 1);
+    if (f > 0 && f < SWAP_AT) {
+      const e = easeInOut(f / SWAP_AT);
+      group.current.position.set(
+        THREE.MathUtils.lerp(GROUP_POS_END.x, -OFFSCREEN_X, e),
+        GROUP_POS_END.y,
+        0
+      );
+    } else if (f >= SWAP_AT) {
+      const e = easeInOut(clamp01((f - SWAP_AT) / (ENTER_END - SWAP_AT)));
+      group.current.position.set(
+        THREE.MathUtils.lerp(-OFFSCREEN_X, GROUP_POS_FLIP.x, e),
+        GROUP_POS_FLIP.y,
+        0
+      );
     } else if (p <= TURN_END) {
       const t = easeInOut(clamp01(p / TURN_END));
       group.current.position.lerpVectors(GROUP_POS_START, GROUP_POS_END, t);

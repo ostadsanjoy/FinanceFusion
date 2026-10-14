@@ -29,7 +29,7 @@ const FEATURES = [
 ];
 
 const DEFAULT_ACTIVE = 1;
-const LEFTS = ['0%', '29%', '58%'];
+const LEFTS = ['0%', '27%', '54%'];
 const BASE_ROTATE = [-5, 0, 5];
 const SPRING = { type: 'spring', stiffness: 240, damping: 24, mass: 0.9 };
 
@@ -49,9 +49,22 @@ const useFan = () => {
   return fan;
 };
 
+const Icon = ({ feature, playing, className }) => {
+  const [stillMissing, setStillMissing] = useState(false);
+
+  return (
+    <img
+      src={playing || stillMissing ? feature.moving : feature.still}
+      onError={() => setStillMissing(true)}
+      alt=""
+      draggable={false}
+      className={className}
+    />
+  );
+};
+
 const FanCard = ({ feature, index, active, onActivate }) => {
   const isActive = active === index;
-  const side = index < active ? -1 : 1;
 
   return (
     <motion.article
@@ -61,7 +74,7 @@ const FanCard = ({ feature, index, active, onActivate }) => {
       onClick={() => onActivate(index)}
       initial={false}
       animate={{
-        x: isActive ? 0 : side * 12,
+        x: isActive ? 0 : (index < active ? -10 : 10),
         y: isActive ? -14 : 8,
         rotate: isActive ? 0 : BASE_ROTATE[index],
         scale: isActive ? 1.04 : 0.96,
@@ -71,32 +84,24 @@ const FanCard = ({ feature, index, active, onActivate }) => {
       }}
       transition={SPRING}
       style={{ left: LEFTS[index], zIndex: isActive ? 30 : 20 - Math.abs(index - active) }}
-      className="absolute top-0 h-full w-[42%] rounded-[28px] bg-white border border-black/5 overflow-hidden cursor-pointer outline-none flex flex-col will-change-transform"
+      className="absolute top-0 h-full w-[46%] rounded-[26px] bg-white border border-black/5 overflow-hidden cursor-pointer outline-none flex flex-col will-change-transform"
     >
       <div
-        className="relative h-[42%] shrink-0 flex items-center justify-center"
+        className="relative h-[38%] [@media(max-height:820px)]:h-[32%] shrink-0 flex items-center justify-center"
         style={{ backgroundColor: feature.tint }}
       >
-        <img
-          src={isActive ? feature.moving : feature.still}
-          alt=""
-          draggable={false}
-          className="h-[82%] w-auto object-contain select-none pointer-events-none"
+        <Icon
+          feature={feature}
+          playing={isActive}
+          className="h-[84%] w-auto object-contain select-none pointer-events-none"
         />
       </div>
 
-      <div className="flex-1 min-h-0 px-4 pt-3 pb-3 flex flex-col overflow-hidden">
-        <h3 className="text-base font-bold tracking-tight leading-tight text-ink">
+      <div className="flex-1 min-h-0 px-3.5 pt-3 pb-3 flex flex-col overflow-hidden">
+        <h3 className="text-[15px] [@media(max-height:820px)]:text-sm font-bold tracking-tight leading-tight text-ink">
           {feature.title}
         </h3>
-        <motion.p
-          initial={false}
-          animate={{ opacity: isActive ? 1 : 0, y: isActive ? 0 : 8 }}
-          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1], delay: isActive ? 0.08 : 0 }}
-          className="mt-1.5 text-[12.5px] leading-snug text-gray-500"
-        >
-          {feature.text}
-        </motion.p>
+        <p className="mt-1.5 text-[12.5px] [@media(max-height:820px)]:text-xs leading-snug text-gray-500">{feature.text}</p>
       </div>
     </motion.article>
   );
@@ -115,10 +120,9 @@ const StackCard = ({ feature }) => {
         className="h-20 w-20 shrink-0 rounded-2xl flex items-center justify-center"
         style={{ backgroundColor: feature.tint }}
       >
-        <img
-          src={hovered ? feature.moving : feature.still}
-          alt=""
-          draggable={false}
+        <Icon
+          feature={feature}
+          playing={hovered}
           className="h-[80%] w-auto object-contain select-none"
         />
       </div>
@@ -155,7 +159,7 @@ const FeatureFan = () => {
     <div
       onMouseLeave={() => setActive(DEFAULT_ACTIVE)}
       className="relative w-full px-2 pt-4"
-      style={{ height: 'clamp(250px, 33vh, 330px)' }}
+      style={{ height: 'clamp(285px, 38vh, 360px)' }}
     >
       <div className="relative h-full w-full">
         {FEATURES.map((f, i) => (
