@@ -139,8 +139,8 @@ const LandingPage = () => {
     if (swoopAnimRef.current) swoopAnimRef.current.stop();
   }, []);
 
-  const detailsX = useTransform(swoop, [0, 0.8], ['100vw', '0vw'], { ease: cubicBezier(0.25, 0.6, 0.3, 1) });
-  const leftX = useTransform(swoop, [0, 0.4], ['0vw', '-100vw'], { ease: SWOOP_EASE });
+  const detailsX = useTransform(swoop, [0.2, 1], ['100vw', '0vw'], { ease: cubicBezier(0.22, 0.7, 0.25, 1) });
+  const leftX = useTransform(swoop, [0, 0.55], ['0vw', '-100vw'], { ease: cubicBezier(0.45, 0, 0.55, 1) });
 
   return (
     <div className="min-h-screen bg-canvas font-sans text-ink selection:bg-accent selection:text-white">
