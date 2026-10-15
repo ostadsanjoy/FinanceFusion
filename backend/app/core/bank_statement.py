@@ -57,7 +57,7 @@ STOP_TOKENS = {
     "TPT", "BIL", "ONL", "NET", "MB", "OTHERS", "SELF", "REF", "NO", "THROUGH", "ACH D", "ACH C", "D", "C",
 }
 
-CHARGE_WORDS = ("charges", "cgst", "sgst", "igst", "gst on", "service tax", "annual fee", "amc ", "min bal", "penalty")
+CHARGE_WORDS = ("charges", "cgst", "sgst", "igst", "gst on", "service tax", "annual fee", "amc ", "min bal", "penalty", "chgs", "chrg", "rtnchg", "return chg", "dept - admn")
 
 
 def _classify_header(text):
@@ -128,32 +128,65 @@ def _title_case(name):
     return " ".join(w.capitalize() if w.isupper() or w.islower() else w for w in name.split(" "))
 
 
-def _is_ref_token(tok):
-    digits = sum(c.isdigit() for c in tok)
-    if digits >= 6:
+IFSC_RE = re.compile(r"^[A-Za-z]{4}0[A-Za-z0-9]{5,}$")
+MASK_RE = re.compile(r"^[Xx*]{3,}\d*$")
+NOISE_PREFIXES = (
+    "transfer", "payment", "pay ", "paid", "subscription", "upi", "imps", "neft", "rtgs", "debit", "credit",
+    "ref", "txn", "trf", "to ", "by ", "from ", "mob", "inb", "tpt", "bil", "onl", "net ", "mb ", "self",
+    "branch", "ifsc", "a/c", "acct", "account",
+)
+
+
+def _is_noise_token(tok):
+    t = tok.strip()
+    if not t:
         return True
-    if "@" in tok:
+    low = t.lower()
+    first = low.split()[0]
+    if first.upper() in STOP_TOKENS:
         return True
-    if re.fullmatch(r"[A-Za-z]{4}0[A-Za-z0-9]{6}", tok):
+    if any(low == p.strip() or low.startswith(p) for p in NOISE_PREFIXES):
         return True
-    if re.fullmatch(r"[A-Za-z]{4}\d*", tok) and tok.upper() == tok and len(tok) <= 5 and tok.upper() not in STOP_TOKENS and len(tok) == 4:
+    if "@" in t or MASK_RE.match(t.replace(" ", "")):
         return True
-    return False
+    compact = t.replace(" ", "")
+    if IFSC_RE.match(compact) or re.match(r"^[A-Za-z]{4}0[A-Za-z0-9]{4,}[A-Za-z]{0,4}$", compact) and any(c.isdigit() for c in compact):
+        return True
+    digits = sum(c.isdigit() for c in t)
+    if digits >= 6 or (digits and digits >= len(compact) * 0.5):
+        return True
+    if re.fullmatch(r"[A-Za-z]{4}", t) and t.isupper():
+        return True
+    letters = sum(c.isalpha() for c in t)
+    return letters < 3
 
 
 def _first_name_token(tokens):
     for tok in tokens:
-        t = tok.strip()
-        if not t or t.upper() in STOP_TOKENS or _is_ref_token(t):
-            continue
-        letters = sum(c.isalpha() for c in t)
-        if letters >= 3 and letters >= len(t) * 0.5:
-            return t
+        if not _is_noise_token(tok):
+            return tok.strip()
     return None
+
+
+def _detect_method(low):
+    if "upi" in low:
+        return "UPI"
+    if "imps" in low:
+        return "IMPS"
+    if "neft" in low:
+        return "NEFT"
+    if "rtgs" in low:
+        return "RTGS"
+    if re.search(r"\b(ach|ecs|nach|mandate|si)\b", low):
+        return "AUTOPAY"
+    if re.search(r"\b(pos|ecom|pur|purchase|card)\b", low):
+        return "CARD"
+    return "OTHER"
 
 
 def clean_narration(raw):
     text = re.sub(r"\s+", " ", raw or "").strip()
+    text = re.sub(r"\s*/?\s*BRANCH\s*:.*$", "", text, flags=re.I).strip()
     if not text:
         return "Unknown", "OTHER"
     low = text.lower()
@@ -165,44 +198,31 @@ def clean_narration(raw):
     if re.search(r"\batm\b|\bnfs\b|cash\s*w(i)?th?dr|cash wdl|\bcwdr\b", low):
         return "ATM cash withdrawal", "ATM"
 
-    if "upi" in low:
-        if "/" in text:
-            parts = [p.strip() for p in text.split("/")]
-            idx = next((i for i, p in enumerate(parts) if p.isdigit() and len(p) >= 8), None)
-            candidates = parts[idx + 1:] if idx is not None else parts
-        else:
-            parts = [p.strip() for p in text.split("-")]
-            idx = next((i for i, p in enumerate(parts) if p.upper() == "UPI"), 0)
-            candidates = parts[idx + 1:]
-        name = _first_name_token(candidates)
-        if name:
-            return _title_case(name), "UPI"
+    method = _detect_method(low)
 
-    for method in ("NEFT", "IMPS", "RTGS"):
-        if method.lower() in low:
-            parts = [p.strip() for p in re.split(r"[/\-]", text)]
-            name = _first_name_token(parts)
-            if name:
-                return _title_case(name), method
-
-    if re.search(r"\b(ach|ecs|nach|si)\b", low):
-        parts = [p.strip() for p in re.split(r"[/\-]", text)]
-        name = _first_name_token(parts)
-        if name:
-            return _title_case(name), "AUTOPAY"
-
-    if re.search(r"\b(pos|ecom|pur|purchase)\b", low):
-        cleaned = re.sub(r"\b(pos|ecom|pur|purchase)\b", " ", text, flags=re.I)
+    if method == "CARD" and "/" not in text:
+        cleaned = re.sub(r"\b(pos|ecom|pur|purchase|card)\b", " ", text, flags=re.I)
         cleaned = re.sub(r"\b\d[\dxX*]{5,}\b", " ", cleaned)
         cleaned = re.sub(r"\s+", " ", cleaned).strip(" /-")
         if cleaned:
             return _title_case(cleaned[:40]), "CARD"
 
-    parts = [p.strip() for p in re.split(r"[/\-]", text)]
+    text = re.sub(r"^(transfer|trf)\s+(to|from)\s+[\d\s]*", "", text, flags=re.I).strip() or text
+    text = re.sub(r"^(tp\s+)?(ach|ecs|nach)\s+(d\s+)?", "", text, flags=re.I).strip() or text
+    text = re.sub(r"(e-?sign|e-?mandate)?(idib|[A-Za-z]{0,6})\d{8,}$", "", text, flags=re.I).strip() or text
+    sep = "/" if "/" in text else ("*" if "*" in text else "-")
+    parts = [re.sub(r"^[A-Za-z]{4}-([xX*]+\d*|\d+)-\s*", "", p.strip()) for p in text.split(sep)]
     name = _first_name_token(parts)
+    if not name and "/" in text:
+        name = _first_name_token([p.strip() for p in text.replace("/", "-").split("-")])
     if name:
-        return _title_case(name[:40]), "OTHER"
-    return _title_case(text[:40]), "OTHER"
+        name = re.sub(r"(e-?sign|e-?mandate)?[A-Za-z]{0,6}\d{6,}$", "", name, flags=re.I).strip() or name
+        return _title_case(name[:48]), method
+    words = [w for w in re.split(r"[\s/\-_]+", text) if w and not _is_noise_token(w)]
+    if words:
+        joined = re.sub(r"(e-?sign|e-?mandate)?[A-Za-z]{0,6}\d{6,}$", "", " ".join(words[:4]), flags=re.I).strip() or " ".join(words[:4])
+        return _title_case(joined[:40]), method
+    return _title_case(text[:40]), method
 
 
 def _item_id(date, amount, narration, seen):
@@ -236,6 +256,10 @@ def _detect_bank(text):
     return None
 
 
+CURRENCY_TOKENS = {"inr", "rs", "rs.", "₹", "usd", "$", "-", "—", "–"}
+MONEY_RE = re.compile(r"^\(?-?\d[\d,]*\.\d{1,2}\)?(Dr|Cr|DR|CR)?$")
+
+
 def _group_lines(words, tolerance=3):
     lines = []
     for w in sorted(words, key=lambda w: (w["top"], w["x0"])):
@@ -248,131 +272,251 @@ def _group_lines(words, tolerance=3):
     return lines
 
 
+def _header_columns(block):
+    spans = {}
+    narration_x0 = None
+    date_x0 = None
+    for ln in block:
+        words = ln["words"]
+        for i, w in enumerate(words):
+            kind = _classify_header(w["text"])
+            if not kind:
+                continue
+            x0, x1 = w["x0"], w["x1"]
+            nxt = words[i + 1] if i + 1 < len(words) else None
+            if kind in ("debit", "credit", "balance", "amount") and nxt and not _classify_header(nxt["text"]) and nxt["x0"] - x1 < 8:
+                x1 = nxt["x1"]
+            if kind == "narration":
+                prev = words[i - 1] if i > 0 else None
+                if prev and not _classify_header(prev["text"]) and x0 - prev["x1"] < 10:
+                    x0 = prev["x0"]
+                narration_x0 = x0 if narration_x0 is None else min(narration_x0, x0)
+            elif kind == "date":
+                date_x0 = x0 if date_x0 is None else min(date_x0, x0)
+            elif kind not in spans:
+                spans[kind] = (x0, x1)
+    return spans, narration_x0, date_x0
+
+
 def _find_header(lines):
     for i, ln in enumerate(lines):
         kinds = {_classify_header(w["text"]) for w in ln["words"]}
-        if not (("debit" in kinds or "amount" in kinds) and ("balance" in kinds or "credit" in kinds)):
+        if not (("debit" in kinds or "amount" in kinds) and ("balance" in kinds or "credit" in kinds or "amount" in kinds)):
             continue
         block = [ln]
         for j in (i - 1, i + 1, i + 2):
             if 0 <= j < len(lines) and abs(lines[j]["top"] - ln["top"]) <= 22:
                 block.append(lines[j])
-        cols = _columns_from_block(block)
-        if "narration_x0" in cols and "date_x0" in cols:
-            return i, block
-    return None, None
+        spans, narration_x0, date_x0 = _header_columns(block)
+        if narration_x0 is not None and date_x0 is not None and ("debit" in spans or "amount" in spans):
+            return i, block, spans
+    return None, None, None
 
 
-def _columns_from_block(block):
-    cols = {}
-    for ln in block:
-        for w in ln["words"]:
-            kind = _classify_header(w["text"])
-            if not kind:
-                continue
-            center = (w["x0"] + w["x1"]) / 2
-            if kind == "date":
-                cols.setdefault("date_x0", w["x0"])
-                cols["date_x0"] = min(cols["date_x0"], w["x0"])
-            elif kind == "narration":
-                cols.setdefault("narration_x0", w["x0"])
-            elif kind not in cols:
-                cols[kind] = center
-    return cols
+def _line_dates(words):
+    found = []
+    idx = 0
+    while idx < len(words) and len(found) < 3:
+        matched = False
+        for k in range(1, 5):
+            chunk = words[idx: idx + k]
+            if len(chunk) < k:
+                break
+            text = " ".join(w["text"] for w in chunk)
+            date, end = _parse_date_prefix(text)
+            if date is not None and end == len(text):
+                found.append((date, chunk))
+                idx += k
+                matched = True
+                break
+        if not matched:
+            break
+    return found
 
 
-def _page_entries(page, state):
-    words = page.extract_words(x_tolerance=1.5, y_tolerance=2, keep_blank_chars=False)
-    lines = _group_lines(words)
+def _is_money(text):
+    return bool(MONEY_RE.match(text.replace(",", "")) or MONEY_RE.match(text))
 
-    header_idx, block = _find_header(lines)
-    if header_idx is not None:
-        cols = _columns_from_block(block)
-        if ("debit" in cols or "amount" in cols) and "narration_x0" in cols:
-            state["cols"] = cols
+
+def _nearest_column(word, spans):
+    best, best_key = None, None
+    for kind, (x0, x1) in spans.items():
+        overlap = min(word["x1"], x1) - max(word["x0"], x0)
+        center_gap = abs((word["x0"] + word["x1"]) / 2 - (x0 + x1) / 2)
+        key = (-max(overlap, 0), center_gap)
+        if best_key is None or key < best_key:
+            best, best_key = kind, key
+    return best
+
+
+def _collect_pages(pdf):
+    pages = []
+    spans = None
+    for page in pdf.pages:
+        words = page.extract_words(x_tolerance=1.5, y_tolerance=2, keep_blank_chars=False)
+        lines = _group_lines(words)
+        header_idx, block, header_spans = _find_header(lines)
+        if header_idx is not None:
+            spans = header_spans
+            cutoff = max(b["top"] for b in block) + 1
             block_ids = {id(b) for b in block}
-            body = [ln for ln in lines if ln["top"] > max(b["top"] for b in block) + 1 and id(ln) not in block_ids]
+            body = [ln for ln in lines if ln["top"] > cutoff and id(ln) not in block_ids]
         else:
-            body = lines if state.get("cols") else []
-    else:
-        body = lines if state.get("cols") else []
+            body = lines
+        heights = sorted(w["bottom"] - w["top"] for w in words) if words else [9]
+        pages.append({"body": body, "spans": spans, "height": heights[len(heights) // 2]})
+    return pages
 
-    cols = state.get("cols")
-    if not cols:
-        return []
 
-    number_cols = {k: cols[k] for k in ("debit", "credit", "balance", "amount") if k in cols}
-    amount_left = min(number_cols.values()) - 38
-    narr_left = cols["narration_x0"] - 3
-    date_right = narr_left
-    rows = []
+def _layout_entries(pages):
+    if not any(p["spans"] for p in pages):
+        return None
+    page_right = max((w["x1"] for pg in pages for ln in pg["body"] for w in ln["words"]), default=0.0)
+    all_rows = []
+    date_right = 0.0
     current = None
     prev_top = None
-    for ln in body:
-        date_words = [w for w in ln["words"] if w["x0"] < date_right]
-        date_text = " ".join(w["text"] for w in date_words)
-        parsed_date, _ = _parse_date_prefix(date_text)
-        has_narr = any(narr_left <= w["x0"] < amount_left + 20 for w in ln["words"])
-        has_num = any(
-            w["x0"] >= amount_left + 20 and _parse_amount(w["text"])[0] is not None for w in ln["words"]
-        )
-        if parsed_date is not None:
-            current = {"date": parsed_date, "narr_lines": [], "nums": {}}
-            rows.append(current)
-            prev_top = ln["top"]
-        elif current is not None and prev_top is not None and ln["top"] - prev_top <= 16 and (has_narr or has_num):
-            prev_top = ln["top"]
-        else:
-            current = None
-            prev_top = None
+    for pg in pages:
+        spans = pg["spans"]
+        if not spans:
             continue
+        first_line = True
+        for ln in pg["body"]:
+            dates = _line_dates(ln["words"]) if ln["words"] and ln["words"][0]["x0"] < page_right * 0.5 else []
+            if dates:
+                current = {"date": dates[0][0], "lines": [], "date_words": [w for _, chunk in dates for w in chunk], "spans": spans}
+                all_rows.append(current)
+                for w in current["date_words"]:
+                    date_right = max(date_right, w["x1"])
+            else:
+                near = prev_top is not None and ln["top"] - prev_top <= pg["height"] * 2.4
+                if not (current is not None and (near or first_line)):
+                    current = None
+                    prev_top = None
+                    first_line = False
+                    continue
+            first_line = False
+            current["lines"].append(ln)
+            prev_top = ln["top"]
+        prev_top = None
 
-        narr_words = [
-            w for w in ln["words"] if narr_left <= w["x0"] < amount_left + 20 and w["x1"] <= amount_left + 45
-        ]
-        if narr_words:
-            current["narr_lines"].append(narr_words)
+    if not all_rows:
+        return None
 
-        for w in ln["words"]:
-            if w["x0"] < amount_left + 20:
-                continue
-            value, flag = _parse_amount(w["text"])
-            if value is None:
-                continue
-            center = (w["x0"] + w["x1"]) / 2
-            kind = min(number_cols, key=lambda k: abs(number_cols[k] - center))
-            current["nums"][kind] = (value, flag)
+    amount_xs = []
+    for row in all_rows:
+        spans = row["spans"]
+        min_header = min(x0 for x0, _ in spans.values())
+        for ln in row["lines"]:
+            for i, w in enumerate(ln["words"]):
+                if not _is_money(w["text"]):
+                    continue
+                kind = _nearest_column(w, spans)
+                if not kind or w["x1"] < spans[kind][0] - 2 or w["x0"] < min_header - 45:
+                    continue
+                x = w["x0"]
+                if i > 0 and ln["words"][i - 1]["text"].lower() in CURRENCY_TOKENS and w["x0"] - ln["words"][i - 1]["x1"] < 8:
+                    x = min(x, ln["words"][i - 1]["x0"])
+                amount_xs.append(x)
+    if amount_xs:
+        amount_left = min(amount_xs) - 3
+    else:
+        amount_left = min(x0 for r in all_rows[:1] for x0, _ in r["spans"].values()) - 6
+    narr_left = date_right + 1
 
-    line_ends = [nl[-1]["x1"] for r in rows for nl in r["narr_lines"][:-1]]
-    wrap_limit = (max(line_ends) - 12) if line_ends else amount_left - 22
-    lens = [len(" ".join(w["text"] for w in nl)) for r in rows for nl in r["narr_lines"][:-1]]
+    built = []
+    for row in all_rows:
+        narr_lines = []
+        nums = {}
+        date_ids = {id(w) for w in row["date_words"]}
+        for ln in row["lines"]:
+            narr = [w for w in ln["words"] if id(w) not in date_ids and narr_left <= w["x0"] < amount_left]
+            if narr:
+                narr_lines.append(narr)
+            for w in ln["words"]:
+                if w["x0"] < amount_left or w["text"].lower() in CURRENCY_TOKENS:
+                    continue
+                value, flag = _parse_amount(w["text"])
+                if value is None:
+                    continue
+                nums[_nearest_column(w, row["spans"])] = (value, flag)
+        built.append({"date": row["date"], "narr_lines": narr_lines, "nums": nums})
+
+    non_last = [nl for r in built for nl in r["narr_lines"][:-1]]
+    line_ends = [nl[-1]["x1"] for nl in non_last]
+    lens = [len(" ".join(w["text"] for w in nl)) for nl in non_last]
     cap = None
     if lens:
         top_len = max(set(lens), key=lens.count)
         if lens.count(top_len) / len(lens) >= 0.6 and top_len >= 20:
             cap = top_len
+    char_widths = sorted(
+        (nl[-1]["x1"] - nl[0]["x0"]) / max(len(" ".join(w["text"] for w in nl)), 1) for nl in non_last
+    )
+    avg_char = char_widths[len(char_widths) // 2] if char_widths else 4.5
+    column_right = max(line_ends) if line_ends else None
+    tight = max(2.0, avg_char * 0.55)
 
     entries = []
-    for row in rows:
+    for row in built:
         text = ""
-        prev_wrapped = False
+        glue = False
         for nl in row["narr_lines"]:
             piece = " ".join(w["text"] for w in nl)
-            if text:
-                text += piece if prev_wrapped else " " + piece
-            else:
-                text = piece
+            text = text + (piece if glue else (" " + piece if text else piece))
             if cap is not None:
-                prev_wrapped = len(piece) >= cap
+                glue = len(piece) >= cap
             else:
-                prev_wrapped = nl[-1]["x1"] >= wrap_limit
+                glue = column_right is not None and (column_right - nl[-1]["x1"]) < tight
         entries.append({"date": row["date"], "narration": text.strip(), "nums": row["nums"]})
     return entries
+
+
+def _headerless_entries(pages):
+    entries = []
+    for pg in pages:
+        current = None
+        prev_top = None
+        for ln in pg["body"]:
+            dates = _line_dates(ln["words"]) if ln["words"] else []
+            if dates and ln["words"][0]["x0"] < 200:
+                current = {"date": dates[0][0], "words": [], "ids": {id(w) for _, c in dates for w in c}}
+                entries.append(current)
+            elif not (current is not None and prev_top is not None and ln["top"] - prev_top <= pg["height"] * 2.4):
+                current = None
+                prev_top = None
+                continue
+            current["words"].extend(w for w in ln["words"] if id(w) not in current["ids"])
+            prev_top = ln["top"]
+    out = []
+    for e in entries:
+        money = [w for w in e["words"] if _is_money(w["text"])]
+        if not money:
+            continue
+        text_words = [w["text"] for w in e["words"] if not _is_money(w["text"]) and w["text"].lower() not in CURRENCY_TOKENS]
+        nums = {}
+        if len(money) >= 2:
+            nums["amount"] = _parse_amount(money[-2]["text"])
+            nums["balance"] = _parse_amount(money[-1]["text"])
+        else:
+            nums["amount"] = _parse_amount(money[-1]["text"])
+        out.append({"date": e["date"], "narration": " ".join(text_words), "nums": nums, "xc": (money[-2]["x0"] + money[-2]["x1"]) / 2 if len(money) >= 2 else None})
+    return out
 
 
 def _entries_to_debits(raw_entries):
     debits = []
     prev_balance = None
+    dr_x, cr_x = [], []
+    probe = None
+    for e in raw_entries:
+        b = e["nums"].get("balance", (None, None))[0]
+        if "amount" in e["nums"] and e.get("xc") is not None and probe is not None and b is not None:
+            (dr_x if b < probe - 0.005 else cr_x).append(e["xc"])
+        if b is not None:
+            probe = b
+    dr_mid = sum(dr_x) / len(dr_x) if dr_x else None
+    cr_mid = sum(cr_x) / len(cr_x) if cr_x else None
     for e in raw_entries:
         nums = e["nums"]
         balance = nums.get("balance", (None, None))[0]
@@ -394,6 +538,8 @@ def _entries_to_debits(raw_entries):
                 amount = abs(value)
             elif prev_balance is not None and balance is not None:
                 amount = value if balance < prev_balance else None
+            elif e.get("xc") is not None and dr_mid is not None and cr_mid is not None:
+                amount = value if abs(e["xc"] - dr_mid) < abs(e["xc"] - cr_mid) else None
         if balance is not None:
             prev_balance = balance
         if amount and amount > 0:
@@ -415,16 +561,16 @@ def _open_pdf(content, password):
 
 def parse_pdf_statement(content, password=None):
     pdf = _open_pdf(content, password)
-    raw = []
     bank = None
-    state = {}
     try:
-        for index, page in enumerate(pdf.pages):
-            if index == 0:
-                bank = _detect_bank(page.extract_text() or "")
-            raw.extend(_page_entries(page, state))
+        if pdf.pages:
+            bank = _detect_bank(pdf.pages[0].extract_text() or "")
+        pages = _collect_pages(pdf)
     finally:
         pdf.close()
+    raw = _layout_entries(pages) or []
+    if not raw:
+        raw = _headerless_entries(pages)
     if not raw:
         raise StatementError(
             "NO_TRANSACTIONS",
