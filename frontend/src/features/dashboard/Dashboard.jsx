@@ -5,8 +5,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend 
 } from 'recharts';
 import GlassCard from '../../components/ui/GlassCard';
-import { Plus, Wallet, History, LogOut, PieChart as PieIcon, BarChart3, Target, Upload, Download } from 'lucide-react';
+import { Plus, Wallet, History, LogOut, PieChart as PieIcon, BarChart3, Target, Upload, Download, Landmark } from 'lucide-react';
 import AddTransactionModal from '../rapid-log/AddTransactionModal';
+import StatementImport from '../statement/StatementImport';
 import { getTransactions, createTransaction, logout, importTransactions, exportTransactions } from '../../services/api';
 import { categoryIcon } from '../../constants/categories';
 
@@ -100,6 +101,7 @@ const Dashboard = () => {
   const fileInputRef = useRef(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importMessage, setImportMessage] = useState('');
+  const [statementOpen, setStatementOpen] = useState(false);
 
   const handleImportFile = async (e) => {
     const file = e.target.files?.[0];
@@ -175,6 +177,15 @@ const Dashboard = () => {
             </button>
 
             <button
+              onClick={() => setStatementOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-muted rounded-full shadow-sm hover:bg-surface transition-all"
+              title="Import a bank statement"
+            >
+              <Landmark className="w-4 h-4 text-gray-500" />
+              <span className="hidden md:inline text-sm font-medium">Bank statement</span>
+            </button>
+
+            <button
               onClick={handleExport}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-muted rounded-full shadow-sm hover:bg-surface transition-all"
               title="Download spends as .xlsx"
@@ -222,6 +233,18 @@ const Dashboard = () => {
           </button>
         </div>
       )}
+
+      <StatementImport
+        isOpen={statementOpen}
+        onClose={() => setStatementOpen(false)}
+        onSaved={(result) => {
+          setImportMessage(
+            `Saved ${result.saved} transaction${result.saved === 1 ? '' : 's'} from your bank statement` +
+            (result.duplicates ? ` (${result.duplicates} already imported earlier, skipped).` : '.')
+          );
+          fetchData();
+        }}
+      />
 
       {importMessage && (
         <div className="max-w-5xl mx-auto -mt-6 mb-6 p-3 bg-green-50 text-green-700 text-sm rounded-xl text-center">

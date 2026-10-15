@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 class TransactionBase(BaseModel):
     amount: float
@@ -11,12 +11,19 @@ class TransactionBase(BaseModel):
     date: Optional[datetime] = None 
 
 class TransactionCreate(TransactionBase):
-    pass
+    ref: Optional[str] = None
+    items: Optional[List[dict]] = None
+
+
+class BulkTransactions(BaseModel):
+    transactions: List[TransactionCreate]
 
 class Transaction(TransactionBase):
     id: str
     user_id: str
-    date: datetime 
+    date: datetime
+    ref: Optional[str] = None
+    items: Optional[List[dict]] = None
 
     class Config:
         from_attributes = True

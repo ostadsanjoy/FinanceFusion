@@ -14,6 +14,7 @@ from app.schemas import transaction as schemas
 from app.api.v1.endpoints.auth import get_current_user
 from app.core.categories import CATEGORIES
 from app.core.statement_parser import parse_statement
+from app.core.bank_statement import StatementError, parse_bank_statement
 
 router = APIRouter()
 
@@ -90,6 +91,70 @@ async def import_transactions(
         batch.commit()
 
     return {"imported": len(parsed), "skipped": skipped}
+
+
+@router.post("/statement/inspect")
+async def inspect_bank_statement(
+    file: UploadFile = File(...),
+    password: Optional[str] = Form(None),
+    current_user: dict = Depends(get_current_user),
+):
+    content = await file.read()
+    try:
+        return parse_bank_statement(file.filename, content, password)
+    except StatementError as e:
+        status = 401 if e.code in ("PASSWORD_REQUIRED", "PASSWORD_INCORRECT") else 400
+        raise HTTPException(status_code=status, detail={"code": e.code, "message": e.message})
+
+
+@router.post("/bulk")
+def create_transactions_bulk(
+    payload: schemas.BulkTransactions,
+    db=Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    collection_ref = db.collection(TRANSACTIONS)
+    existing = set()
+    has_refs = any(t.ref or t.items for t in payload.transactions)
+    if has_refs:
+        for doc in (
+            collection_ref.where(filter=FieldFilter("user_id", "==", current_user["id"])).stream()
+        ):
+            doc_data = doc.to_dict()
+            if doc_data.get("ref"):
+                existing.add(doc_data["ref"])
+            for part in doc_data.get("items") or []:
+                if part.get("id"):
+                    existing.add(part["id"])
+
+    to_write = []
+    duplicates = 0
+    for t in payload.transactions:
+        member_ids = [part.get("id") for part in (t.items or []) if part.get("id")]
+        if member_ids:
+            is_duplicate = all(i in existing for i in member_ids)
+        else:
+            is_duplicate = bool(t.ref and t.ref in existing)
+        if is_duplicate:
+            duplicates += 1
+            continue
+        data = t.model_dump()
+        data["date"] = data["date"] or datetime.utcnow()
+        data["user_id"] = current_user["id"]
+        if not data.get("ref"):
+            data.pop("ref", None)
+        if not data.get("items"):
+            data.pop("items", None)
+        to_write.append(data)
+
+    CHUNK = 400
+    for start in range(0, len(to_write), CHUNK):
+        batch = db.batch()
+        for data in to_write[start : start + CHUNK]:
+            batch.set(collection_ref.document(), data)
+        batch.commit()
+
+    return {"saved": len(to_write), "duplicates": duplicates}
 
 
 @router.get("/export")
@@ -200,7 +265,7 @@ def update_transaction(
     if not snap.exists or snap.to_dict().get("user_id") != current_user["id"]:
         raise HTTPException(status_code=404, detail="Transaction not found")
 
-    update_data = transaction_update.model_dump()
+    update_data = transaction_update.model_dump(exclude={"ref", "items"})
     if update_data["date"] is None:
         update_data["date"] = snap.to_dict().get("date")
 

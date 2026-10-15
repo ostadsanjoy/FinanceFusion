@@ -1,10 +1,95 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getTransactions, createTransaction, updateTransaction, deleteTransaction, exportTransactions } from '../../services/api';
 import GlassCard from '../../components/ui/GlassCard';
 import AddTransactionModal from '../rapid-log/AddTransactionModal';
-import { ArrowLeft, Calendar, ChevronDown, ChevronRight, Plus, Pencil, Download } from 'lucide-react';
-import { categoryIcon } from '../../constants/categories';
+import { ArrowLeft, Calendar, ChevronDown, ChevronRight, Plus, Pencil, Download, Check } from 'lucide-react';
+import { categoryIcon, CATEGORIES } from '../../constants/categories';
+
+const SORT_OPTIONS = [
+  { id: 'date_asc', label: 'Date: first to last' },
+  { id: 'date_desc', label: 'Latest first' },
+  { id: 'amount_desc', label: 'Highest amount first' },
+  { id: 'amount_asc', label: 'Lowest amount first' },
+  { id: 'category', label: 'By category (by date)' },
+];
+
+const SortMenu = ({ value, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const current = SORT_OPTIONS.find((o) => o.id === value) || SORT_OPTIONS[0];
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-1.5 pl-4 pr-3 py-2 bg-accent text-white rounded-full shadow-lg hover:bg-ink transition-all text-sm font-medium whitespace-nowrap"
+      >
+        {current.label}
+        <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-2 z-20 min-w-full bg-white rounded-2xl shadow-soft border border-muted/40 py-1.5 overflow-hidden">
+          {SORT_OPTIONS.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => {
+                onChange(o.id);
+                setOpen(false);
+              }}
+              className="w-full flex items-center justify-between gap-4 px-4 py-2 text-sm text-left text-ink whitespace-nowrap hover:bg-surface transition-colors"
+            >
+              {o.label}
+              {o.id === value && <Check className="w-4 h-4 text-accent" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const byDate = (a, b) => new Date(a.date) - new Date(b.date);
+
+const categoryName = (id) => {
+  const match = CATEGORIES.find((c) => c.id === String(id || '').toLowerCase());
+  return match ? match.name : id || 'Uncategorized';
+};
+
+const buildRows = (transactions, mode) => {
+  const list = [...transactions];
+  if (mode === 'date_desc') return list.sort((a, b) => byDate(b, a)).map((t) => ({ type: 'tx', t }));
+  if (mode === 'amount_desc') return list.sort((a, b) => b.amount - a.amount || byDate(a, b)).map((t) => ({ type: 'tx', t }));
+  if (mode === 'amount_asc') return list.sort((a, b) => a.amount - b.amount || byDate(a, b)).map((t) => ({ type: 'tx', t }));
+  if (mode === 'category') {
+    const groups = {};
+    list.forEach((t) => {
+      const key = String(t.category || 'uncategorized').toLowerCase();
+      (groups[key] = groups[key] || []).push(t);
+    });
+    const rows = [];
+    Object.keys(groups)
+      .sort((a, b) => categoryName(a).localeCompare(categoryName(b)))
+      .forEach((key) => {
+        const items = groups[key].sort(byDate);
+        rows.push({ type: 'header', key, count: items.length, total: items.reduce((a, t) => a + t.amount, 0) });
+        items.forEach((t) => rows.push({ type: 'tx', t }));
+      });
+    return rows;
+  }
+  return list.sort(byDate).map((t) => ({ type: 'tx', t }));
+};
 
 const Accounts = () => {
   const [years, setYears] = useState({});
@@ -13,6 +98,20 @@ const Accounts = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [exportingKey, setExportingKey] = useState(null);
+  const [sortMode, setSortMode] = useState(() => {
+    try {
+      return localStorage.getItem('records_sort') || 'date_asc';
+    } catch (e) {
+      return 'date_asc';
+    }
+  });
+
+  const changeSort = (value) => {
+    setSortMode(value);
+    try {
+      localStorage.setItem('records_sort', value);
+    } catch (e) {}
+  };
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -192,7 +291,7 @@ const Accounts = () => {
                 {/* Months List (Collapsible) */}
                 {expandedYear === year && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-2 md:pl-4 animate-in slide-in-from-top-4 duration-300">
-                        {Object.entries(yearData.months).map(([month, monthData]) => {
+                        {Object.entries(yearData.months).sort((a, b) => a[1].monthIndex - b[1].monthIndex).map(([month, monthData]) => {
                              const isMonthOpen = expandedMonth === `${year}-${month}`;
                              return (
                                 <GlassCard 
@@ -225,7 +324,20 @@ const Accounts = () => {
                                     {/* Transactions List (Drill Down) */}
                                     {isMonthOpen && (
                                         <div className="mt-6 space-y-3 pt-4 border-t border-muted/20 animate-in fade-in">
-                                            {monthData.transactions.map((t) => (
+                                            <div className="flex items-center justify-between gap-3" onClick={(e) => e.stopPropagation()}>
+                                                <span className="text-xs text-gray-400">{monthData.transactions.length} transactions</span>
+                                                <SortMenu value={sortMode} onChange={changeSort} />
+                                            </div>
+                                            {buildRows(monthData.transactions, sortMode).map((row) => row.type === 'header' ? (
+                                                <div key={`h-${row.key}`} className="flex items-center justify-between pt-3 pb-1 px-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-lg">{categoryIcon(row.key)}</span>
+                                                        <span className="text-sm font-semibold">{categoryName(row.key)}</span>
+                                                        <span className="text-[11px] text-gray-400">{row.count}</span>
+                                                    </div>
+                                                    <span className="text-sm font-medium text-gray-500">₹{row.total.toLocaleString()}</span>
+                                                </div>
+                                            ) : (() => { const t = row.t; return (
                                                 <div 
                                                     key={t.id} 
                                                     onClick={(e) => { e.stopPropagation(); handleOpenEdit(t); }}
@@ -245,7 +357,7 @@ const Accounts = () => {
                                                         <Pencil className="w-4 h-4 text-gray-300 group-hover:text-accent transition-colors" />
                                                     </div>
                                                 </div>
-                                            ))}
+                                            ); })())}
                                             
                                             {/* Add to specific month button shortcut (optional visual cue) */}
                                             <div className="text-center pt-2">

@@ -137,6 +137,26 @@ export const importTransactions = async (file, year) => {
   return response.data; // { imported, skipped }
 };
 
+export const inspectStatement = async (file, password) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (password) formData.append('password', password);
+
+  const response = await axios.post(`${API_URL}/transactions/statement/inspect`, formData, {
+    headers: { ...(await getAuthHeader()), 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+export const saveTransactionsBulk = async (transactions) => {
+  const response = await axios.post(
+    `${API_URL}/transactions/bulk`,
+    { transactions },
+    { headers: await getAuthHeader() }
+  );
+  return response.data;
+};
+
 export const exportTransactions = async ({ year, month } = {}) => {
   const params = {};
   if (year) params.year = year;
