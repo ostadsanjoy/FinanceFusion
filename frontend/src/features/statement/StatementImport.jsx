@@ -362,8 +362,21 @@ const SortStep = ({ queue, entries, setEntries, onBack, onNext }) => {
   );
 
   const skip = () => {
-    setEntries((cur) => ({ ...cur, [tx.id]: { ...(cur[tx.id] || {}), name, category: null, skipped: true } }));
-    setIndex(nextUnsorted(index, new Set([tx.id])));
+    const covered = new Set([tx.id]);
+    if (applyAll) {
+      queue.forEach((t) => {
+        if (t.id !== tx.id && t.name === tx.name && !handled(entries[t.id])) covered.add(t.id);
+      });
+    }
+    const baseName = name;
+    setEntries((cur) => {
+      const next = { ...cur };
+      covered.forEach((id) => {
+        next[id] = { ...(cur[id] || {}), name: id === tx.id ? baseName : (cur[id] || {}).name ?? baseName, category: null, skipped: true };
+      });
+      return next;
+    });
+    setIndex(nextUnsorted(index, covered));
   };
 
   const rename = (value) => {
@@ -471,7 +484,7 @@ const SortStep = ({ queue, entries, setEntries, onBack, onNext }) => {
               onChange={(e) => setApplyAll(e.target.checked)}
               className="accent-ink"
             />
-            Use this category for the {sameCount} other payment{sameCount === 1 ? '' : 's'} to {tx.name}
+            Apply my choice (category or don't import) to the {sameCount} other payment{sameCount === 1 ? '' : 's'} to {tx.name}
           </label>
         )}
       </div>
