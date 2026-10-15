@@ -29,6 +29,8 @@ const prettyDate = (iso) =>
     weekday: 'short',
   });
 
+const handled = (e) => Boolean(e && (e.category || e.skipped));
+
 const STEPS = ['Upload', 'Months', 'Sort', 'Group', 'Save'];
 
 const StepBar = ({ step }) => (
@@ -284,7 +286,7 @@ const MonthsStep = ({ data, fileName, selected, setSelected, onBack, onNext }) =
 
 const SortStep = ({ queue, entries, setEntries, onBack, onNext }) => {
   const [index, setIndex] = useState(() => {
-    const first = queue.findIndex((t) => !entries[t.id]);
+    const first = queue.findIndex((t) => !handled(entries[t.id]));
     return first === -1 ? 0 : first;
   });
   const [applyAll, setApplyAll] = useState(false);
@@ -295,7 +297,7 @@ const SortStep = ({ queue, entries, setEntries, onBack, onNext }) => {
   const entry = entries[tx.id] || {};
   const name = entry.name ?? tx.name;
   const sameCount = useMemo(
-    () => queue.filter((t) => t.id !== tx.id && t.name === tx.name && !entries[t.id]).length,
+    () => queue.filter((t) => t.id !== tx.id && t.name === tx.name && !handled(entries[t.id])).length,
     [queue, tx, entries]
   );
 
@@ -311,7 +313,7 @@ const SortStep = ({ queue, entries, setEntries, onBack, onNext }) => {
   }, [entries, queue]);
 
   const suggestion = learned[tx.name];
-  const done = queue.filter((t) => entries[t.id]).length;
+  const done = queue.filter((t) => handled(entries[t.id])).length;
   const allDone = done === queue.length;
 
   useEffect(() => {
@@ -320,35 +322,48 @@ const SortStep = ({ queue, entries, setEntries, onBack, onNext }) => {
     setEditing(false);
   }, [index]);
 
+  const nextUnsorted = useCallback(
+    (from, covered) => {
+      const open = (t) => !handled(entries[t.id]) && !covered.has(t.id);
+      const after = queue.findIndex((t, i) => i > from && open(t));
+      if (after !== -1) return after;
+      const before = queue.findIndex((t, i) => i < from && open(t));
+      if (before !== -1) return before;
+      return Math.min(from + 1, queue.length - 1);
+    },
+    [entries, queue]
+  );
+
   const choose = useCallback(
     (category) => {
+      const covered = new Set([tx.id]);
+      const baseName = (entries[tx.id] || {}).name ?? tx.name;
+      if (applyAll) {
+        queue.forEach((t) => {
+          if (t.id !== tx.id && t.name === tx.name && !handled(entries[t.id])) covered.add(t.id);
+        });
+      }
       setEntries((cur) => {
         const next = { ...cur };
         const base = cur[tx.id] || {};
         next[tx.id] = { ...base, name: base.name ?? tx.name, category, skipped: false };
-        if (applyAll) {
-          queue.forEach((t) => {
-            if (t.id !== tx.id && t.name === tx.name && !cur[t.id]) {
-              next[t.id] = { name: base.name ?? t.name, category, skipped: false };
-            }
-          });
-        }
+        covered.forEach((id) => {
+          if (id !== tx.id) next[id] = { ...(cur[id] || {}), name: (cur[id] || {}).name ?? baseName, category, skipped: false };
+        });
         return next;
       });
       const targetIdx = index;
+      const target = nextUnsorted(index, covered);
       setTimeout(() => {
-        setIndex((i) => {
-          if (i !== targetIdx) return i;
-          return Math.min(i + 1, queue.length - 1);
-        });
+        setIndex((i) => (i === targetIdx ? target : i));
       }, 120);
     },
-    [applyAll, index, queue, setEntries, tx]
+    [applyAll, entries, index, nextUnsorted, queue, setEntries, tx]
   );
 
   const skip = () => {
     setEntries((cur) => ({ ...cur, [tx.id]: { ...(cur[tx.id] || {}), name, category: null, skipped: true } }));
-    setIndex((i) => Math.min(i + 1, queue.length - 1));
+    setIndex(nextUnsorted(index, new Set([tx.id])));
   };
 
   const rename = (value) => {
@@ -357,7 +372,7 @@ const SortStep = ({ queue, entries, setEntries, onBack, onNext }) => {
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.target.tagName === 'INPUT' || e.metaKey || e.ctrlKey) return;
+      if ((e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') || e.metaKey || e.ctrlKey) return;
       const n = parseInt(e.key, 10);
       if (n >= 1 && n <= CATEGORIES.length) choose(CATEGORIES[n - 1].id);
       else if (e.key === 'ArrowLeft') setIndex((i) => Math.max(i - 1, 0));
@@ -819,7 +834,7 @@ const StatementImport = ({ isOpen, onClose, onSaved }) => {
   const sortedRows = useMemo(
     () =>
       queue
-        .filter((t) => entries[t.id] && !entries[t.id].skipped)
+        .filter((t) => entries[t.id] && entries[t.id].category && !entries[t.id].skipped)
         .map((t) => ({
           id: t.id,
           date: t.date,
