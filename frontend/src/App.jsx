@@ -4,6 +4,7 @@ import LandingPage from './features/landing/LandingPage';
 import Dashboard from './features/dashboard/Dashboard';
 import Accounts from './features/accounts/Accounts';
 import Budget from './features/budget/Budget';
+import Statistics from './features/statistics/Statistics';
 import Login from './features/auth/Login';
 import Signup from './features/auth/Signup';
 import ForgotPassword from './features/auth/ForgotPassword';
@@ -45,6 +46,7 @@ function App() {
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/accounts" element={<ProtectedRoute><Accounts /></ProtectedRoute>} />
           <Route path="/budget" element={<ProtectedRoute><Budget /></ProtectedRoute>} />
+          <Route path="/statistics" element={<ProtectedRoute><Statistics /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

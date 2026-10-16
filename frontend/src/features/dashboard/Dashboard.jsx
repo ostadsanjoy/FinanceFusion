@@ -164,6 +164,16 @@ const Dashboard = () => {
               className="hidden"
               onChange={handleImportFile}
             />
+
+            <button
+              onClick={() => navigate('/statistics')}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-muted rounded-full shadow-sm hover:bg-surface transition-all"
+              title="Spending statistics and charts"
+            >
+              <BarChart3 className="w-4 h-4 text-gray-500" />
+              <span className="hidden md:inline text-sm font-medium">Statistics</span>
+            </button>
+            
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isImporting}
